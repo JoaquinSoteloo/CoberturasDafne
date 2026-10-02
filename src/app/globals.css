@@ -432,3 +432,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .receipt-row{flex-basis:100%}
 .ledger-row:has(.ledger-date) .receipt-row{padding-left:58px}
 .receipt-control{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+
+/* Revisión de un Uber leído del comprobante */
+.scan-summary{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--sunken)}
+.scan-summary img{width:64px;height:88px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--line)}
+.scan-summary p{overflow-wrap:anywhere}
+.scan-warning{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--flash-soft);color:var(--warn-text);font-size:14px;font-weight:600}
+.scan-warning svg{flex-shrink:0;margin-top:2px}

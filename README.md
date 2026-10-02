@@ -40,4 +40,6 @@ Configuración, una sola vez:
 5. Copiá `.env.example` como `.env.local` y completá las tres variables (**Project Settings > API Keys**). `SUPABASE_SECRET_KEY` es secreta: solo la usa el servidor para crear los accesos de las CM.
 6. En Vercel, cargá las mismas tres variables en **Settings > Environment Variables** y volvé a desplegar.
 
+**Comprobantes con IA (opcional).** En el detalle de una cobertura, "Cargar Uber desde comprobante" manda la captura o el PDF a OpenAI (`/api/receipt-scan`, solo para la coordinadora), que devuelve total, fecha, horarios y direcciones. Si es de ida o de vuelta lo decide la app (`src/lib/trip.ts`): por la dirección del salón o, si no, por el horario. Dafne siempre revisa y confirma antes de guardar. Requiere `OPENAI_API_KEY` en `.env.local` y en Vercel; sin ella, el botón avisa que falta configurarla.
+
 La primera vez que Dafne entra, la cuenta arranca vacía. Para crear coberturas hace falta cargar al menos un salón (en Equipo). Para darle acceso a una CM, Dafne carga su email en la ficha y toca **Acceso**: la app genera una contraseña provisoria para pasarle por WhatsApp.

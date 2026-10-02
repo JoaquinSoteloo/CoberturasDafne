@@ -6,7 +6,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_SIDE = 1600;
 
 /** Achica una foto antes de subirla (una captura de Uber queda en unos 200 KB). Los PDF van tal cual. */
-async function shrink(file: File): Promise<Blob> {
+export async function shrink(file: File): Promise<Blob> {
   if (!file.type.startsWith('image/')) return file;
   try {
     const bitmap = await createImageBitmap(file);

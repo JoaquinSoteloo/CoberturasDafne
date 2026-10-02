@@ -9,6 +9,7 @@ import { CoverageForm } from '@/components/coverage-form';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
+import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal } from '@/lib/domain';
@@ -66,6 +67,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
             {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><label className="checklist-action"><input type="checkbox" checked={x.done} onChange={e=>toggleItem(x.id,e.target.checked)}/><span className={x.done?'completed-task':''}>{x.text}</span></label></li>)}</ul></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
             <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Cargar gastos</button></div>
+            <div className="mb-3"><UberFromReceipt coverage={c}/></div>
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
               <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span><span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
               <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}</span>
