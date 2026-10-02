@@ -61,3 +61,15 @@ test('las filas leídas se ordenan por posición', () => {
   const db = fromRows(rows);
   assert.deepStrictEqual(db.coverages.find(c => c.id === 'cov-1').checklist.map(x => x.id), ['ch-1', 'ch-2']);
 });
+
+test('las filas existentes viajan con su versión; las nuevas, sin', async () => {
+  const { emptyVersions, mergeVersions } = await import('../src/lib/rows.ts');
+  const db = createSeed();
+  const versions = mergeVersions(emptyVersions(), { coverages: { 'cov-1': 3 } });
+  const next = { ...db, coverages: db.coverages.map(c => c.id === 'cov-1' ? { ...c, name: 'Otro nombre' } : c), salons: [...db.salons, { id: 'nuevo', name: 'Nuevo', address: '' }] };
+  const { changes } = diff(snapshotOf(db), next, versions);
+  assert.equal(changes.upsert.coverages[0].version, 3);
+  assert.equal('version' in changes.upsert.salons[0], false);
+  // Lo que devuelve la base pisa la versión vieja.
+  assert.equal(mergeVersions(versions, { coverages: { 'cov-1': 4 } }).coverages.get('cov-1'), 4);
+});

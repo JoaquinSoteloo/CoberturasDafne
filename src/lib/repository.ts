@@ -1,12 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fromRows, type Changes, type Row, type Rows } from './rows';
+import { TABLES, fromRows, type Changes, type Row, type Rows, type Table, type Versions } from './rows';
 import type { Db } from './types';
 
 export const emptyDb = (): Db => ({ version: 1, salons: [], cms: [], coverages: [], collections: [], cmPayments: [] });
 export const newId = () => crypto.randomUUID();
 
 /** Lee todas las tablas de la cuenta (las políticas filtran por dueña) y arma el Db. */
-export async function loadDb(supabase: SupabaseClient): Promise<Db> {
+export async function loadDb(supabase: SupabaseClient): Promise<{ db: Db; versions: Versions }> {
   const read = async (table: string) => {
     const { data, error } = await supabase.from(table).select('*');
     if (error) throw error;
@@ -24,13 +24,15 @@ export async function loadDb(supabase: SupabaseClient): Promise<Db> {
     collections: sortBy(collections, 'date'),
     cm_payments: sortBy(payments, 'date').map(p => ({ ...p, allocations: byPayment.get(p.id) ?? [] }))
   };
-  return fromRows(rows);
+  const versions = Object.fromEntries(TABLES.map(t => [t, new Map(rows[t].map(r => [r.id, Number(r.version ?? 1)]))])) as unknown as Versions;
+  return { db: fromRows(rows), versions };
 }
 
-/** Aplica los cambios en una sola transacción: se guarda todo o nada. */
-export async function saveChanges(supabase: SupabaseClient, changes: Changes): Promise<void> {
-  const { error } = await supabase.rpc('save_changes', { changes });
+/** Aplica los cambios en una sola transacción: se guarda todo o nada. Devuelve las versiones nuevas. */
+export async function saveChanges(supabase: SupabaseClient, changes: Changes): Promise<Partial<Record<Table, Record<string, number>>>> {
+  const { data, error } = await supabase.rpc('save_changes', { changes });
   if (error) throw error;
+  return (data ?? {}) as Partial<Record<Table, Record<string, number>>>;
 }
 
 const sortBy = (rows: Row[], key: string) => [...rows].sort((a, b) => String(a[key] ?? '').localeCompare(String(b[key] ?? '')));

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { emptyDb, loadDb, saveChanges } from '@/lib/repository';
-import { diff, snapshotOf, type Snapshot } from '@/lib/rows';
+import { diff, emptyVersions, mergeVersions, snapshotOf, type Snapshot } from '@/lib/rows';
 import type { Db } from '@/lib/types';
 
 export type SaveState = 'saved' | 'saving' | 'error';
@@ -20,6 +20,8 @@ const isRejected = (error: unknown) => {
   const code = (error as { code?: string })?.code ?? '';
   return code.startsWith('22') || code.startsWith('23') || code === 'P0001' || code === '42501';
 };
+/** Otra persona cambió la misma fila (por ejemplo, una CM confirmó) desde que la leímos. */
+const isConflict = (error: unknown) => (error as { code?: string })?.code === '40001';
 const isSessionError = (error: unknown) => ['28000', 'PGRST301', 'PGRST303'].includes((error as { code?: string })?.code ?? '');
 
 /** Datos de la coordinadora: carga todas las tablas y guarda los cambios. */
@@ -32,6 +34,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const latest = useRef(db);                          // lo que hay en pantalla
   const saved = useRef<Snapshot>(snapshotOf(db));     // lo último que confirmó Supabase
   const savedDb = useRef(db);
+  const versions = useRef(emptyVersions());
   const inFlight = useRef(false);
   const loadedAt = useRef(0);
   const timer = useRef<number | undefined>(undefined);
@@ -42,23 +45,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.replace('/ingresar'); return; }
     setEmail(user.email ?? '');
-    const loaded = await loadDb(supabase);
-    saved.current = snapshotOf(loaded); savedDb.current = loaded; latest.current = loaded; loadedAt.current = Date.now();
+    const { db: loaded, versions: loadedVersions } = await loadDb(supabase);
+    saved.current = snapshotOf(loaded); savedDb.current = loaded; latest.current = loaded; versions.current = loadedVersions; loadedAt.current = Date.now();
     setDb(loaded); setSaveState('saved'); setStatus('ready');
   }, [router]);
 
   const flush = useCallback(async function flush() {
     if (inFlight.current) return;
     const snapshot = latest.current;
-    const { changes, after, empty } = diff(saved.current, snapshot);
+    const { changes, after, empty } = diff(saved.current, snapshot, versions.current);
     if (empty) { savedDb.current = snapshot; setSaveState('saved'); return; }
     inFlight.current = true;
     try {
-      await saveChanges(supabaseBrowser(), changes);
-      saved.current = after; savedDb.current = snapshot;
+      const newVersions = await saveChanges(supabaseBrowser(), changes);
+      saved.current = after; savedDb.current = snapshot; versions.current = mergeVersions(versions.current, newVersions);
     } catch (error) {
       inFlight.current = false;
       if (isSessionError(error)) { toast.error('Tu sesión venció. Volvé a ingresar.'); router.replace('/ingresar'); return; }
+      if (isConflict(error)) {
+        toast.warning('Mientras editabas, alguien cambió estos mismos datos (por ejemplo, una CM confirmó su fecha). Cargamos lo último: revisá tu cambio y volvé a hacerlo.');
+        await load().catch(() => setSaveState('error'));
+        return;
+      }
       if (isRejected(error)) {
         // La base no aceptó el cambio (por ejemplo, borrar algo que ya tiene pagos). Volvemos a lo guardado.
         toast.error('No se pudo guardar el último cambio porque deja los datos inconsistentes. Cargamos lo que estaba guardado.');

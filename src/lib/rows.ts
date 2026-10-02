@@ -13,6 +13,16 @@ export type Rows = Record<Table, Row[]>;
 /** Por tabla, cada id con su fila serializada: sirve para comparar. */
 export type Snapshot = Record<Table, Map<string, string>>;
 export type Changes = { upsert: Partial<Record<Table, Row[]>>; delete: Partial<Record<Table, string[]>> };
+/** Versión vigente de cada fila según la base. Guardar exige mandarla: si otra persona cambió la fila, se rechaza. */
+export type Versions = Record<Table, Map<string, number>>;
+export const emptyVersions = (): Versions => Object.fromEntries(TABLES.map(t => [t, new Map()])) as unknown as Versions;
+
+/** Suma a `versions` las que devolvió la base al guardar ({tabla: {id: versión}}). */
+export function mergeVersions(versions: Versions, saved: Partial<Record<Table, Record<string, number>>> | null | undefined): Versions {
+  const next = Object.fromEntries(TABLES.map(t => [t, new Map(versions[t])])) as unknown as Versions;
+  for (const t of TABLES) for (const [id, v] of Object.entries(saved?.[t] ?? {})) next[t].set(id, v);
+  return next;
+}
 
 type Allocation = { position: number; assignment_id: string | null; expense_id: string | null; amount_cents: number };
 
@@ -97,12 +107,13 @@ export function snapshotOf(db: Db): Snapshot {
 }
 
 /** Qué hay que mandar a Supabase para pasar de `before` a `db`. */
-export function diff(before: Snapshot, db: Db): { changes: Changes; after: Snapshot; empty: boolean } {
+export function diff(before: Snapshot, db: Db, versions: Versions = emptyVersions()): { changes: Changes; after: Snapshot; empty: boolean } {
   const rows = toRows(db); const after = snapshotOf(db);
   const changes: Changes = { upsert: {}, delete: {} };
   let empty = true;
   for (const table of TABLES) {
-    const upsert = rows[table].filter(r => before[table].get(r.id) !== after[table].get(r.id));
+    const upsert = rows[table].filter(r => before[table].get(r.id) !== after[table].get(r.id))
+      .map(r => versions[table].has(r.id) ? { ...r, version: versions[table].get(r.id) } : r);
     const removed = [...before[table].keys()].filter(id => !after[table].has(id));
     if (upsert.length) { changes.upsert[table] = upsert; empty = false; }
     if (removed.length) { changes.delete[table] = removed; empty = false; }
