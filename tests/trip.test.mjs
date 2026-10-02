@@ -43,3 +43,18 @@ test('avisa si el comprobante no es del día de la fiesta', () => {
   assert.equal(dateWarning(receipt({ date: '2026-10-11' }), event.startsAt), null);
   assert.match(dateWarning(receipt({ date: '2026-09-28' }), event.startsAt), /28\/09/);
 });
+
+test('la hora de un viaje se ubica en el día correcto', async () => {
+  const { tripTimestamp } = await import('../src/lib/trip.ts');
+  assert.equal(tripTimestamp('2026-10-10T21:00', '20:15'), '2026-10-10T20:15');
+  assert.equal(tripTimestamp('2026-10-10T21:00', '04:20'), '2026-10-11T04:20');
+  assert.equal(tripTimestamp('2026-10-31T21:00', '03:00'), '2026-11-01T03:00');
+  assert.equal(tripTimestamp('2026-10-10T21:00', '04:20', '2026-10-12'), '2026-10-12T04:20');
+});
+
+test('resume el viaje para mostrarlo', async () => {
+  const { tripSummary } = await import('../src/lib/trip.ts');
+  assert.equal(tripSummary({ tripFrom: 'Palermo', tripTo: 'Libertador 1240', tripStartedAt: '2026-10-10T20:15', tripEndedAt: '2026-10-10T20:40' }), 'Palermo → Libertador 1240, de 20:15 a 20:40');
+  assert.equal(tripSummary({ tripTo: 'Libertador 1240' }), '? → Libertador 1240');
+  assert.equal(tripSummary({}), '');
+});

@@ -12,6 +12,8 @@ export type Expense = {
   absorbedBy: 'coordinadora' | 'salon';
   /** Ubicación del comprobante en el almacenamiento. Se guarda aparte, no en save_changes. */
   receiptPath?: string;
+  /** Datos del viaje (Ubers). Horarios en hora local: "AAAA-MM-DDTHH:MM". */
+  tripFrom?: string; tripTo?: string; tripStartedAt?: string; tripEndedAt?: string;
 };
 export type ChecklistItem = { id: string; text: string; done: boolean };
 export type Coverage = {

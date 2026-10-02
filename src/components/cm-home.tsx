@@ -7,6 +7,7 @@ import { ars } from '@/lib/money';
 import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
 import { ReceiptControl } from './receipt-control';
+import { tripSummary } from '@/lib/trip';
 import { InstallHint } from './install-hint';
 
 type Item = { id: string; text: string; done: boolean };
@@ -17,7 +18,7 @@ type CmDate = {
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; team: Mate[];
 };
-type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null };
+type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
 type Payment = { id: string; date: string; amount_cents: number };
 type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
 
@@ -110,7 +111,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
         <div className="ledger-head"><div><h2 className="section-title">Te falta cobrar</h2><p className="ledger-total">{ars(pending)}</p></div></div>
         {home.concepts.length ? <ul className="ledger">{home.concepts.map(c => { const day = shortDay(c.starts_at); const owed = c.amount_cents - c.paid_cents; return <li key={`${c.coverage_id}-${c.label}`} className="ledger-row">
           <span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
-          <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span><Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>
+          <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span>{c.kind === 'expense' && tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at }) && <span className="block text-sm">{tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at })}</span>}<Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>
           <span className="ledger-amount">{owed > 0 ? ars(owed) : <span className="badge badge-success">Pagado</span>}</span>
           {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()}/></span>}
         </li>; })}</ul> : <p className="muted px-5 pb-5">Todavía no tenés honorarios cargados.</p>}

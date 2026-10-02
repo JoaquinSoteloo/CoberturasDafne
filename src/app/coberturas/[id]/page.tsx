@@ -10,6 +10,7 @@ import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
+import { tripSummary } from '@/lib/trip';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal } from '@/lib/domain';
@@ -69,7 +70,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Cargar gastos</button></div>
             <div className="mb-3"><UberFromReceipt coverage={c}/></div>
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
-              <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span><span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
+              <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span>{tripSummary(e)&&<span className="block text-sm">{tripSummary(e)}</span>}<span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
               <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}</span>
               <span className="receipt-row"><ReceiptControl expenseId={e.id} path={e.receiptPath} disabledReason={saveState==='saved'?undefined:'Se puede adjuntar cuando terminen de guardarse los cambios.'} onChange={path=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.map(x=>x.id===e.id?{...x,receiptPath:path??undefined}:x)}:row)}))}/></span>
             </li>})}</ul>}

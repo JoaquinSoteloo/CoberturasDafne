@@ -53,3 +53,24 @@ export function dateWarning(r: ReceiptData, eventStartsAt: string): string | nul
   const label = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
   return `El comprobante es del ${label(r.date)} y la fiesta del ${label(eventStartsAt)}. Revisá que sea el correcto.`;
 }
+
+/**
+ * Fecha y hora de un viaje cargado solo con la hora. Es el día de la fiesta; si la hora
+ * queda más de 12 horas antes del comienzo (la vuelta de madrugada), el día siguiente.
+ */
+export function tripTimestamp(eventStartsAt: string, time: string, date?: string | null): string {
+  if (date) return `${date}T${time}`;
+  const day = eventStartsAt.slice(0, 10);
+  const trip = new Date(`${day}T${time}`).getTime();
+  if (trip >= new Date(eventStartsAt).getTime() - 12 * HOUR) return `${day}T${time}`;
+  const next = new Date(`${day}T12:00`); next.setDate(next.getDate() + 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}T${time}`;
+}
+
+/** "Palermo → Av. Libertador 1240, de 20:15 a 20:40". Vacío si no hay datos del viaje. */
+export function tripSummary(t: { tripFrom?: string | null; tripTo?: string | null; tripStartedAt?: string | null; tripEndedAt?: string | null }): string {
+  const route = t.tripFrom || t.tripTo ? `${t.tripFrom || '?'} → ${t.tripTo || '?'}` : '';
+  const from = t.tripStartedAt?.slice(11, 16), to = t.tripEndedAt?.slice(11, 16);
+  const hours = from && to ? `de ${from} a ${to}` : from ? `salió ${from}` : to ? `llegó ${to}` : '';
+  return [route, hours].filter(Boolean).join(', ');
+}

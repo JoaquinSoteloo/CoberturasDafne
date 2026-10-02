@@ -83,3 +83,13 @@ test('el comprobante se lee pero no viaja al guardar, así no pisa el que subió
   assert.equal(diff(snapshotOf(db), next).empty, true);
   assert.equal('receipt_path' in toRows(next).expenses[0], false);
 });
+
+test('los datos del viaje van y vuelven, con fechas como las devuelve Postgres', () => {
+  const db = createSeed();
+  const withTrip = { ...db, coverages: db.coverages.map(c => c.id === 'cov-1' ? { ...c, expenses: c.expenses.map(e => ({ ...e, tripFrom: 'Palermo', tripTo: 'Libertador 1240', tripStartedAt: '2030-01-05T20:15', tripEndedAt: '2030-01-05T20:40' })) } : c) };
+  const rows = toRows(withTrip);
+  assert.equal(rows.expenses[0].trip_from, 'Palermo');
+  rows.expenses[0] = { ...rows.expenses[0], trip_started_at: '2030-01-05T20:15:00' };
+  assert.deepStrictEqual(fromRows(rows), withTrip);
+  assert.equal(toRows(db).expenses[0].trip_from, null);
+});

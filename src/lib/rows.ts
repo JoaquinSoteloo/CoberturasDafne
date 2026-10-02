@@ -47,7 +47,8 @@ export function toRows(db: Db): Rows {
     expenses: db.coverages.flatMap(c => c.expenses.map((e, position) => ({
       id: e.id, coverage_id: c.id, label: e.label, kind: e.kind, amount_cents: e.amountCents,
       payment_status: e.paymentStatus ?? null, advanced_by: e.advancedBy ?? null, advanced_cm_id: e.advancedCmId ?? null,
-      absorbed_by: e.absorbedBy, position
+      absorbed_by: e.absorbedBy, position,
+      trip_from: e.tripFrom || null, trip_to: e.tripTo || null, trip_started_at: e.tripStartedAt || null, trip_ended_at: e.tripEndedAt || null
     }))),
     checklist_items: db.coverages.flatMap(c => c.checklist.map((x, position) => ({ id: x.id, coverage_id: c.id, text: x.text, done: x.done, position }))),
     collections: db.collections.map(p => ({ id: p.id, coverage_id: p.coverageId, date: p.date, amount_cents: p.amountCents, notes: p.notes })),
@@ -89,6 +90,10 @@ export function fromRows(rows: Rows): Db {
         if (e.advanced_by) expense.advancedBy = e.advanced_by as Expense['advancedBy'];
         if (e.advanced_cm_id) expense.advancedCmId = str(e.advanced_cm_id);
         if (e.receipt_path) expense.receiptPath = str(e.receipt_path);
+        if (e.trip_from) expense.tripFrom = str(e.trip_from);
+        if (e.trip_to) expense.tripTo = str(e.trip_to);
+        if (e.trip_started_at) expense.tripStartedAt = minutes(e.trip_started_at);
+        if (e.trip_ended_at) expense.tripEndedAt = minutes(e.trip_ended_at);
         return expense;
       }),
       checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) }))

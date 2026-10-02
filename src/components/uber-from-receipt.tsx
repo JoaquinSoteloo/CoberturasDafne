@@ -6,11 +6,11 @@ import { useStore } from './store';
 import { Modal, MoneyField } from './ui';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, shrink } from '@/lib/receipts';
-import { dateWarning, guessDirection, type ReceiptData } from '@/lib/trip';
+import { dateWarning, guessDirection, tripTimestamp, type ReceiptData } from '@/lib/trip';
 import { newId } from '@/lib/repository';
 import type { Coverage, Expense } from '@/lib/types';
 
-type Draft = { direction: 'ida' | 'vuelta' | null; amountCents: number; payer: string; absorbedBy: Expense['absorbedBy'] };
+type Draft = { direction: 'ida' | 'vuelta' | null; amountCents: number; payer: string; absorbedBy: Expense['absorbedBy']; from: string; to: string; start: string; end: string };
 
 /** "Cargar Uber desde comprobante": la IA lee la captura, Dafne revisa y confirma, y se crea el gasto con el comprobante. */
 export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
@@ -46,7 +46,8 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
       setFile({ blob: small, name: picked.name });
       setPreview(small.type.startsWith('image/') ? URL.createObjectURL(small) : '');
       setRead(result);
-      setDraft({ direction, amountCents: result.totalCents ?? 0, payer: 'coordinadora', absorbedBy: 'coordinadora' });
+      setDraft({ direction, amountCents: result.totalCents ?? 0, payer: 'coordinadora', absorbedBy: 'coordinadora',
+        from: result.origin ?? '', to: result.destination ?? '', start: result.pickupTime ?? '', end: result.dropoffTime ?? '' });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo leer el comprobante.');
     } finally { setReading(false); }
@@ -62,6 +63,10 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
     const expense: Expense = {
       id: newId(), label: draft.direction === 'ida' ? 'Uber de ida' : 'Uber de vuelta', kind: 'uber', amountCents: draft.amountCents,
       paymentStatus: 'pendiente', absorbedBy: draft.absorbedBy,
+      tripFrom: draft.from.trim() || undefined, tripTo: draft.to.trim() || undefined,
+      // Con la fecha del comprobante si se leyó; si no, la de la fiesta (o la madrugada siguiente).
+      tripStartedAt: draft.start ? tripTimestamp(coverage.startsAt, draft.start, read?.date) : undefined,
+      tripEndedAt: draft.end ? tripTimestamp(coverage.startsAt, draft.end, read?.date) : undefined,
       ...(draft.payer === 'coordinadora' ? { advancedBy: 'coordinadora' as const } : { advancedBy: 'cm' as const, advancedCmId: draft.payer })
     };
     update(db => ({ ...db, coverages: db.coverages.map(c => c.id === coverage.id ? { ...c, expenses: [...c.expenses, expense] } : c) }));
@@ -107,6 +112,12 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
           {guess && <p className="muted mt-2 text-sm">{guess.direction ? `Lo sugerimos porque: ${guess.reason.charAt(0).toLowerCase()}${guess.reason.slice(1)}` : guess.reason}</p>}
         </fieldset>
         <MoneyField label="Importe" value={draft.amountCents} onChange={v => setDraft({ ...draft, amountCents: v })}/>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="label">Desde</span><input className="field" value={draft.from} onChange={e => setDraft({ ...draft, from: e.target.value })}/></label>
+          <label className="block"><span className="label">Hasta</span><input className="field" value={draft.to} onChange={e => setDraft({ ...draft, to: e.target.value })}/></label>
+          <label className="block"><span className="label">Salida</span><input className="field" type="time" value={draft.start} onChange={e => setDraft({ ...draft, start: e.target.value })}/></label>
+          <label className="block"><span className="label">Llegada</span><input className="field" type="time" value={draft.end} onChange={e => setDraft({ ...draft, end: e.target.value })}/></label>
+        </div>
         <label className="block"><span className="label">¿Quién lo pagó?</span>
           <select className="field" value={draft.payer} onChange={e => setDraft({ ...draft, payer: e.target.value })}>
             <option value="coordinadora">Vos</option>
