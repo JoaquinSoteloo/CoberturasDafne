@@ -60,7 +60,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           </div>
         </li>
         <li className={`step ${steps.night?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">La noche</h2><p className="step-note">{c.checklist.length?`${doneItems} de ${c.checklist.length} piezas listas`:'Sin lista de contenido'}</p></div>
+          <div className="step-head"><h2 className="step-title">La noche</h2><p className="step-note">{[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?`${doneItems} de ${c.checklist.length} piezas listas`:c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. ')}</p></div>
           <div className="step-body">
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
             {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><label className="checklist-action"><input type="checkbox" checked={x.done} onChange={e=>toggleItem(x.id,e.target.checked)}/><span className={x.done?'completed-task':''}>{x.text}</span></label></li>)}</ul></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}

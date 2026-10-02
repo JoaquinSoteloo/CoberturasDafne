@@ -418,3 +418,11 @@ a.ledger-row:hover{background:var(--sunken)}
 .numbers-collect{margin-top:20px;padding-top:16px;border-top:1px solid #ffffff26}
 .numbers-collect .meter{background:#ffffff26;max-width:none}
 .numbers-hint{margin-top:10px;font-size:13px;line-height:1.45;color:#bdb5d6}
+
+/* Instalada en iPhone la barra de estado es transparente: un fondo fijo detrás de la hora y la batería. */
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--night);z-index:70;pointer-events:none}
+
+/* Fila de CM en el detalle: en pantallas angostas, la etiqueta y las acciones bajan a su propia línea. */
+.crew-row>.min-w-0{flex:1 1 160px}
+.crew-row .block.font-bold{overflow-wrap:anywhere}
+@media(max-width:560px){.crew-actions{flex-basis:100%;padding-left:58px}}

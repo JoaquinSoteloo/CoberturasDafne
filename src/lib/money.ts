@@ -1,4 +1,5 @@
-export const ars = (cents: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 }).format(cents / 100);
+/** "$ 50.000", o "$ 1.500,50" si hay centavos. */
+export const ars = (cents: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(cents / 100);
 /**
  * Lee un monto escrito como en Argentina y lo devuelve en centavos. Vacío es 0.
  * Acepta "200000", "200.000", "1500,50" y "1.500,50"; si no es un monto, devuelve null.
