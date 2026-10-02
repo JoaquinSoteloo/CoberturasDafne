@@ -89,26 +89,28 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
     {tab === 'fechas' ? <section className="space-y-5" aria-label="Mis fechas">
       {upcoming.length === 0 && <p className="muted">Cuando Dafne te asigne una fiesta, aparece acá.</p>}
-      {upcoming.map(d => <article key={d.id} className={`ticket ticket-${d.event_status}`} aria-label={d.name}>
-        <div className="ticket-main">
+      {upcoming.map(d => <article key={d.id} className="cm-date" aria-label={d.name}>
+        {/* La entrada queda corta. El mapa va afuera: en Safari del iPhone, un mapa embebido dentro de la entrada (que usa máscara para las muescas) no se dibuja. */}
+        <div className={`ticket ticket-${d.event_status}`}>
+          <div className="ticket-main">
           <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span><span>{longDay(d.starts_at)}</span></p>
           <h2 className="ticket-name">{d.name}</h2>
           <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
           <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
-          {d.address && d.starts_at.slice(0, 10) >= now && <div className="mt-4"><MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/></div>}
           {d.notes && <p className="ticket-note">{d.notes}</p>}
-
+          </div>
+          <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
+        </div>
+        <div className="cm-date-body">
+          {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
           {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
-            {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es {ars(d.fee_cents)}.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
+            {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
             {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Honorario {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
             {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
           </div>}
-
           {d.team.length > 0 && <div className="mt-4"><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
-
           {d.checklist.length > 0 && <div className="mt-4"><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
         </div>
-        <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
       </article>)}
       {past.length > 0 && <details className="cm-past"><summary className="cursor-pointer font-bold">Fechas anteriores ({past.length})</summary><ul className="ledger card mt-3">{past.map(d => { const day = shortDay(d.starts_at); return <li key={d.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">{d.name}</span><span className="muted text-sm">{d.event_status === 'cancelado' ? 'Cancelada' : d.confirmation === 'rechazada' ? 'No la cubriste' : d.salon}</span></span></li>; })}</ul></details>}
     </section> : <section className="space-y-7" aria-label="Mis pagos">

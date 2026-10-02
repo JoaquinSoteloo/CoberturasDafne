@@ -13,7 +13,8 @@ export function MapPreview({ address, label, coords, fixLocationHref }: {
   fixLocationHref?: string;
 }) {
   if (!address.trim() && !coords) return null;
-  const query = coords ? `${coords.lat},${coords.lng}` : address;
+  // Con la dirección, el mapa de Google dibuja el pin; con coordenadas, no. Las coordenadas quedan para Uber.
+  const query = address.trim() || (coords ? `${coords.lat},${coords.lng}` : '');
   const maps = mapsSearchUrl(address, coords);
   return <div className="map-preview">
     <a href={maps} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden="true" className="map-frame">

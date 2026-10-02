@@ -464,3 +464,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .over-warning li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .location-set{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:14px;font-weight:600;color:var(--ok)}
 .location-set .text-link{font-size:14px}
+
+/* Fecha de la CM: entrada corta arriba, y abajo una tarjeta con el mapa, la respuesta y el contenido. */
+.cm-date{display:grid;gap:10px}
+.cm-date-body{display:grid;gap:16px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.cm-date-body>*{margin-top:0!important}
+.cm-date-body .cm-answer{margin-top:0}
+.map-actions .btn{flex:1 1 auto;justify-content:center}
