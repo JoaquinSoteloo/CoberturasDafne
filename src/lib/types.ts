@@ -10,6 +10,8 @@ export type Expense = {
   paymentStatus?: 'pendiente' | 'pagado';
   advancedBy?: 'coordinadora' | 'cm'; advancedCmId?: string;
   absorbedBy: 'coordinadora' | 'salon';
+  /** Ubicación del comprobante en el almacenamiento. Se guarda aparte, no en save_changes. */
+  receiptPath?: string;
 };
 export type ChecklistItem = { id: string; text: string; done: boolean };
 export type Coverage = {

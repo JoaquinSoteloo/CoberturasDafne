@@ -73,3 +73,13 @@ test('las filas existentes viajan con su versión; las nuevas, sin', async () =>
   // Lo que devuelve la base pisa la versión vieja.
   assert.equal(mergeVersions(versions, { coverages: { 'cov-1': 4 } }).coverages.get('cov-1'), 4);
 });
+
+test('el comprobante se lee pero no viaja al guardar, así no pisa el que subió una CM', () => {
+  const rows = toRows(createSeed());
+  rows.expenses[0] = { ...rows.expenses[0], receipt_path: 'ex-1/captura.jpg' };
+  const db = fromRows(rows);
+  assert.equal(db.coverages.find(c => c.id === 'cov-1').expenses[0].receiptPath, 'ex-1/captura.jpg');
+  const next = { ...db, coverages: db.coverages.map(c => c.id === 'cov-1' ? { ...c, expenses: c.expenses.map(e => ({ ...e, receiptPath: 'ex-1/otra.jpg' })) } : c) };
+  assert.equal(diff(snapshotOf(db), next).empty, true);
+  assert.equal('receipt_path' in toRows(next).expenses[0], false);
+});

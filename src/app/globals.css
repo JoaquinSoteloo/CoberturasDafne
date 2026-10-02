@@ -426,3 +426,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .crew-row>.min-w-0{flex:1 1 160px}
 .crew-row .block.font-bold{overflow-wrap:anywhere}
 @media(max-width:560px){.crew-actions{flex-basis:100%;padding-left:58px}}
+
+/* Comprobantes de gastos */
+.ledger-row:has(.receipt-row){flex-wrap:wrap}
+.receipt-row{flex-basis:100%}
+.ledger-row:has(.ledger-date) .receipt-row{padding-left:58px}
+.receipt-control{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}

@@ -88,6 +88,7 @@ export function fromRows(rows: Rows): Db {
         if (e.payment_status) expense.paymentStatus = e.payment_status as Expense['paymentStatus'];
         if (e.advanced_by) expense.advancedBy = e.advanced_by as Expense['advancedBy'];
         if (e.advanced_cm_id) expense.advancedCmId = str(e.advanced_cm_id);
+        if (e.receipt_path) expense.receiptPath = str(e.receipt_path);
         return expense;
       }),
       checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) }))

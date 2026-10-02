@@ -8,12 +8,13 @@ import { ArrowLeft, Pencil, FolderOpen } from 'lucide-react';
 import { CoverageForm } from '@/components/coverage-form';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
+import { ReceiptControl } from '@/components/receipt-control';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal } from '@/lib/domain';
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
-  const {id}=use(params); const {db,ready,update}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|null>(null);
+  const {id}=use(params); const {db,ready,update,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|null>(null);
   const c=db.coverages.find(x=>x.id===id);
   if(!ready) return <p className="muted">Cargando cobertura…</p>;
   if(!c) return <div><Link href="/coberturas" className="text-link">Volver a coberturas</Link><h1 className="page-title mt-5">Cobertura no encontrada</h1></div>;
@@ -68,6 +69,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
               <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span><span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
               <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}</span>
+              <span className="receipt-row"><ReceiptControl expenseId={e.id} path={e.receiptPath} disabledReason={saveState==='saved'?undefined:'Se puede adjuntar cuando terminen de guardarse los cambios.'} onChange={path=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.map(x=>x.id===e.id?{...x,receiptPath:path??undefined}:x)}:row)}))}/></span>
             </li>})}</ul>}
           </div>
         </li>
