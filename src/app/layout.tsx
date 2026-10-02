@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import { Unbounded, Figtree } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { Toaster } from 'sonner';
 import { AppRoot } from '@/components/app-root';
 import { ServiceWorker } from '@/components/service-worker';
 
-const display = Unbounded({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display' });
-const body = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'], variable: '--font-body' });
+// Tipografías guardadas en el proyecto (licencia OFL): compilar no depende de Google Fonts,
+// que a veces responde con direcciones que rompen next/font en Vercel.
+const display = localFont({ src: './fonts/unbounded-latin.woff2', weight: '500 700', variable: '--font-display', display: 'swap' });
+const body = localFont({ src: './fonts/figtree-latin.woff2', weight: '400 800', variable: '--font-body', display: 'swap' });
 
 // Aplica el modo elegido antes de pintar, para que no parpadee.
 const themeScript=`try{var t=localStorage.getItem('dafne-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}`;
