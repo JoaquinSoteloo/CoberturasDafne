@@ -7,6 +7,8 @@ import { ars } from '@/lib/money';
 import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
 import { ReceiptControl } from './receipt-control';
+import { MapPreview } from './map-preview';
+import { PushPrompt, PushToggle } from './push-control';
 import { tripSummary } from '@/lib/trip';
 import { InstallHint } from './install-hint';
 
@@ -80,6 +82,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   return <>{header}<main className="cm-page space-y-7">
     <InstallHint/>
+    <PushPrompt forCm/>
     <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{toAnswer ? `Tenés ${toAnswer === 1 ? 'una fecha' : `${toAnswer} fechas`} para confirmar.` : upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
     <div className="coverage-view-switch" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Mis fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Mis pagos</button></div>
 
@@ -91,6 +94,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
           <h2 className="ticket-name">{d.name}</h2>
           <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
           <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
+          {d.address && d.starts_at.slice(0, 10) >= now && <div className="mt-4"><MapPreview address={d.address} label={d.salon}/></div>}
           {d.notes && <p className="ticket-note">{d.notes}</p>}
 
           {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
@@ -119,6 +123,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
     </section>}
 
+    <div className="cm-settings"><PushToggle className="cm-push-toggle"/></div>
     <ChangePassword/>
   </main></>;
 }

@@ -18,6 +18,8 @@ export async function middleware(request: NextRequest) {
     }
   });
   const { data: { user } } = await supabase.auth.getUser();
+  // Las rutas /api/ verifican sus propios permisos (sesión, rol o CRON_SECRET): no se redirigen.
+  if (request.nextUrl.pathname.startsWith('/api/')) return response;
   const atLogin = request.nextUrl.pathname === LOGIN;
   if (!user && !atLogin) return redirectKeepingCookies(request, response, LOGIN);
   if (user && atLogin) return redirectKeepingCookies(request, response, '/');

@@ -3,7 +3,7 @@
 // Solo se guardan los archivos de la app, para que abra rápido, y una página
 // "Sin conexión" para cuando no hay internet.
 
-const VERSION = 'coberturas-v1';
+const VERSION = 'coberturas-v2';
 const SHELL = ['/offline.html', '/icons/icon-192.png'];
 
 self.addEventListener('install', event => {
@@ -41,4 +41,27 @@ self.addEventListener('fetch', event => {
       }))
     );
   }
+});
+
+// Avisos (Web Push): el servidor manda { title, body, url, tag }.
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(data.title || 'Coberturas', {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    tag: data.tag,          // el mismo aviso no se repite en la bandeja
+    data: { url: data.url || '/' }
+  }));
+});
+
+// Al tocar el aviso: si la app está abierta, va a esa pantalla; si no, la abre.
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+    const open = windows.find(w => w.url.startsWith(self.location.origin));
+    if (open) return open.navigate(url).then(w => (w || open).focus());
+    return self.clients.openWindow(url);
+  }));
 });

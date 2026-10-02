@@ -42,4 +42,8 @@ Configuración, una sola vez:
 
 **Comprobantes con IA (opcional).** En el detalle de una cobertura, "Cargar Uber desde comprobante" manda la captura o el PDF a OpenAI (`/api/receipt-scan`, solo para la coordinadora), que devuelve total, fecha, horarios y direcciones. Si es de ida o de vuelta lo decide la app (`src/lib/trip.ts`): por la dirección del salón o, si no, por el horario. Dafne siempre revisa y confirma antes de guardar. Requiere `OPENAI_API_KEY` en `.env.local` y en Vercel; sin ella, el botón avisa que falta configurarla.
 
+**Avisos (notificaciones push).** Cada persona los activa desde su celular ("Activar avisos"). En iPhone solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o posterior). Hay cuatro: recordatorio 24 horas antes de cada fiesta (Dafne y CM asignadas que no rechazaron), fecha nueva (a la CM), confirmación o rechazo (a Dafne) y pago registrado (a la CM). Los anota la base en `private.notification_outbox` (triggers y `enqueue_due_reminders`) y los manda `/api/push/dispatch`, que Supabase llama cada minuto con `pg_cron` (migración 0007). Requiere `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `CRON_SECRET` en Vercel, y en el Vault de Supabase los secretos `app_url` y `cron_secret`.
+
+**Mapa.** El detalle de la cobertura y las fechas de la CM muestran un mapa de la dirección (vista de Google sin clave) que al tocarlo abre Google Maps.
+
 La primera vez que Dafne entra, la cuenta arranca vacía. Para crear coberturas hace falta cargar al menos un salón (en Equipo). Para darle acceso a una CM, Dafne carga su email en la ficha y toca **Acceso**: la app genera una contraseña provisoria para pasarle por WhatsApp.

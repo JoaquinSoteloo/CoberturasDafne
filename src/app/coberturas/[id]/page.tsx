@@ -11,6 +11,7 @@ import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { tripSummary } from '@/lib/trip';
+import { MapPreview } from '@/components/map-preview';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal } from '@/lib/domain';
@@ -46,6 +47,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     <Link href="/coberturas" className="back-link"><ArrowLeft size={17}/> Coberturas</Link>
     <div className="detail-hero">
       <Ticket coverage={c} db={db}>{(c.client||c.address)&&<p className="ticket-extra">{[c.client&&`Para ${c.client}`,c.address].filter(Boolean).join('. ')}</p>}{c.notes&&<p className="ticket-note">{c.notes}</p>}</Ticket>
+      <MapPreview address={c.address||db.salons.find(s=>s.id===c.salonId)?.address||''} label={db.salons.find(s=>s.id===c.salonId)?.name}/>
       <button className="btn btn-secondary" onClick={()=>setEditing('event')}><Pencil size={16}/> Editar datos del evento</button>
     </div>
     {cancelled&&<p role="status" className="cancel-note">Esta fiesta está cancelada: no suma ingresos ni costos.</p>}

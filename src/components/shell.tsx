@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { House, CalendarDays, Users, Wallet, LogOut } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { InstallHint } from './install-hint';
+import { PushPrompt, PushToggle } from './push-control';
 import { useStore, type SaveState } from './store';
 const nav = [
   { href: '/', label: 'Inicio', Icon: House },
@@ -24,11 +25,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <Brand/>
       <nav aria-label="Navegación principal" className="sidebar-nav">{nav.map(({href,label,Icon}) => <Link key={href} href={href} aria-current={active(href) ? 'page' : undefined} className="nav-item"><Icon size={20}/>{label}</Link>)}</nav>
       <ThemeToggle className="sidebar-theme"/>
+      <PushToggle/>
       <div className="sidebar-footer"><div className="profile-avatar">{(email[0]||'D').toUpperCase()}</div><div className="min-w-0 flex-1"><strong className="block truncate">{email||'Dafne'}</strong><SaveStatus/></div></div>
       <button type="button" className="theme-toggle" onClick={()=>void signOut()}><LogOut size={18}/><span>Salir</span></button>
     </aside>
-    <div className="app-content"><header className="mobile-header"><Brand/><div className="flex items-center gap-1"><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={()=>void signOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div></header>
-      <main className="main-content"><InstallHint/>{children}<SaveStatus className="mobile-save"/></main>
+    <div className="app-content"><header className="mobile-header"><Brand/><div className="flex items-center gap-1"><PushToggle className="header-theme"/><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={()=>void signOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div></header>
+      <main className="main-content"><InstallHint/><PushPrompt/>{children}<SaveStatus className="mobile-save"/></main>
     </div>
     <nav aria-label="Navegación principal" className="bottom-nav">{nav.map(({href,label,Icon}) => <Link key={href} href={href} aria-current={active(href) ? 'page' : undefined}><Icon size={21}/><span>{label}</span></Link>)}</nav>
   </div>;
