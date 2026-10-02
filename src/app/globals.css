@@ -458,9 +458,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 
 /* Avisos */
 .push-hint-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:11px;background:var(--night);color:var(--flash);flex-shrink:0}
-.cm-settings{display:flex;flex-wrap:wrap;gap:8px}
-.cm-push-toggle{color:var(--ink);background:var(--surface);border:1px solid var(--line)}
-.cm-push-toggle:hover{color:var(--ink);background:var(--sunken)}
 
 /* Cobrado de más */
 .over-warning{padding:16px 18px;border-radius:16px;background:var(--flash-soft);border:1.5px solid var(--flash);color:var(--ink);display:grid;gap:10px}

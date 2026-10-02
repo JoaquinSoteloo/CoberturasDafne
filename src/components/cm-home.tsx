@@ -70,7 +70,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   const header = <header className="cm-header">
     <BrandMark/>
-    <div className="flex items-center gap-1"><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
+    <div className="flex items-center gap-1"><PushToggle className="header-theme"/><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
   </header>;
 
   if (failed) return <>{header}<main className="cm-page text-center"><p className="font-bold">No pudimos cargar tus fechas.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet.</p><button className="btn btn-primary mt-4" onClick={() => void load()}>Reintentar</button></main></>;
@@ -127,7 +127,6 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
     </section>}
 
-    <div className="cm-settings"><PushToggle className="cm-push-toggle"/></div>
     <ChangePassword/>
   </main></>;
 }

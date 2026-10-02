@@ -1,30 +1,62 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bell, BellOff, BellRing, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { disablePush, enablePush, pushState, type PushState } from '@/lib/push';
 
 const KEY = 'coberturas-push-hint';
 
+/**
+ * Estado de los avisos compartido por toda la app: la campanita de arriba y la tarjeta
+ * leen el mismo valor, así activar desde una actualiza la otra al instante.
+ */
+const shared = {
+  state: null as PushState | null,
+  busy: false,
+  listeners: new Set<() => void>(),
+  checked: false,
+  snapshot: { state: null as PushState | null, busy: false },
+  set(patch: Partial<{ state: PushState | null; busy: boolean }>) {
+    Object.assign(this, patch);
+    this.snapshot = { state: this.state, busy: this.busy };
+    this.listeners.forEach(l => l());
+  },
+  refresh() { pushState().then(state => shared.set({ state })).catch(() => shared.set({ state: 'unsupported' })); }
+};
+const subscribe = (listener: () => void) => {
+  shared.listeners.add(listener);
+  if (!shared.checked) { shared.checked = true; shared.refresh(); }
+  return () => { shared.listeners.delete(listener); };
+};
+const serverSnapshot = { state: null, busy: false };
+
 function usePush() {
-  const [state, setState] = useState<PushState | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { pushState().then(setState).catch(() => setState('unsupported')); }, []);
+  const { state, busy } = useSyncExternalStore(subscribe, () => shared.snapshot, () => serverSnapshot);
+  // Si se cambian los permisos desde los ajustes del celular, se nota al volver a la app.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') shared.refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
   const run = async (task: () => Promise<PushState>, done?: string) => {
-    setBusy(true);
-    try { const next = await task(); setState(next); if (next === 'on' && done) toast.success(done); if (next === 'denied') toast.error('Los avisos quedaron bloqueados. Se reactivan desde los ajustes del celular.'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo cambiar los avisos.'); }
-    finally { setBusy(false); }
+    shared.set({ busy: true });
+    try {
+      const next = await task();
+      shared.set({ state: next });
+      if (next === 'on' && done) toast.success(done);
+      if (next === 'denied') toast.error('Los avisos quedaron bloqueados. Se reactivan desde los ajustes del celular.');
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo cambiar los avisos.'); }
+    finally { shared.set({ busy: false }); }
   };
-  return { state, busy, enable: () => run(enablePush, 'Avisos activados'), disable: () => run(disablePush) };
+  return { state, busy, enable: () => run(enablePush, 'Avisos activados'), disable: () => run(disablePush, undefined) };
 }
 
-/** Botón para la barra lateral: activar o desactivar los avisos en este dispositivo. */
+/** Campanita: activar o desactivar los avisos en este dispositivo. */
 export function PushToggle({ className = '' }: { className?: string }) {
   const { state, busy, enable, disable } = usePush();
   if (!state || state === 'unsupported' || state === 'needs-install') return null;
-  if (state === 'denied') return <span className={`theme-toggle ${className}`} title="Se reactivan desde los ajustes del navegador"><BellOff size={18}/><span>Avisos bloqueados</span></span>;
-  return <button type="button" className={`theme-toggle ${className}`} disabled={busy} aria-pressed={state === 'on'} onClick={() => void (state === 'on' ? disable() : enable())}>
+  if (state === 'denied') return <span className={`theme-toggle ${className}`} title="Se reactivan desde los ajustes del celular" aria-label="Avisos bloqueados"><BellOff size={18}/><span>Avisos bloqueados</span></span>;
+  return <button type="button" className={`theme-toggle ${className}`} disabled={busy} aria-pressed={state === 'on'} aria-label={state === 'on' ? 'Avisos activados: tocá para desactivarlos' : 'Activar avisos'} onClick={() => void (state === 'on' ? disable() : enable())}>
     {state === 'on' ? <BellRing size={18}/> : <Bell size={18}/>}<span>{state === 'on' ? 'Avisos activados' : 'Activar avisos'}</span>
   </button>;
 }
