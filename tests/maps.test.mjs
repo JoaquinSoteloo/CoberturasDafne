@@ -39,3 +39,10 @@ test('arma el link de Uber con el destino', () => {
   assert.equal(url.searchParams.get('dropoff[nickname]'), 'Eclipse Kids');
   assert.equal(url.searchParams.get('pickup'), 'my_location');
 });
+
+test('saca el link del texto que se copia al compartir desde Maps', async () => {
+  const { extractLink } = await import('../src/lib/maps.ts');
+  assert.equal(extractLink('Eclipse Kids\nAlmte Brown 2975\nhttps://maps.app.goo.gl/AbCdEf123?g_st=ic'), 'https://maps.app.goo.gl/AbCdEf123?g_st=ic');
+  assert.equal(extractLink('  https://maps.app.goo.gl/x  '), 'https://maps.app.goo.gl/x');
+  assert.equal(extractLink('-34.55, -58.55'), '-34.55, -58.55');
+});

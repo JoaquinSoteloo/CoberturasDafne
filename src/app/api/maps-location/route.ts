@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
-import { coordsFromText, isShortMapsLink } from '@/lib/maps';
+import { coordsFromText, extractLink, isShortMapsLink } from '@/lib/maps';
 
 export const runtime = 'nodejs';
 
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   if (role !== 'coordinadora') return fail('Solo la coordinadora puede fijar ubicaciones.', 403);
 
   const body = await request.json().catch(() => null) as { url?: unknown } | null;
-  const text = typeof body?.url === 'string' ? body.url.trim().slice(0, 2000) : '';
+  const text = typeof body?.url === 'string' ? extractLink(body.url.slice(0, 2000)) : '';
   if (!text) return fail('Pegá el link de Google Maps.', 400);
 
   const direct = coordsFromText(text);

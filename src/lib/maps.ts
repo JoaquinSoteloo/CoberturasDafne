@@ -31,6 +31,9 @@ export function coordsFromText(text: string): Coords | null {
   return view ? valid(Number(view[1]), Number(view[2])) : null;
 }
 
+/** Lo que se copia al compartir desde Maps suele traer el nombre del lugar antes del link: se queda con el link. */
+export const extractLink = (text: string) => text.match(/https?:\/\/\S+/)?.[0] ?? text.trim();
+
 const SHORT_HOSTS = new Set(['maps.app.goo.gl', 'goo.gl', 'g.co']);
 /** ¿Es un link corto de Google Maps que hay que abrir para ver las coordenadas? */
 export function isShortMapsLink(text: string) {
