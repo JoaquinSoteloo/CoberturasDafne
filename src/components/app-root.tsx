@@ -11,7 +11,7 @@ type Role = 'loading' | 'coordinadora' | 'cm' | 'none' | 'error';
 /** Decide qué ve cada cuenta: la coordinadora, la app completa; una CM, solo lo suyo. */
 export function AppRoot({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  return path === '/ingresar' ? <>{children}</> : <RoleGate>{children}</RoleGate>;
+  return path === '/ingresar' || path.startsWith('/ingresar/') ? <>{children}</> : <RoleGate>{children}</RoleGate>;
 }
 
 function RoleGate({ children }: { children: React.ReactNode }) {

@@ -20,9 +20,10 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   // Las rutas /api/ verifican sus propios permisos (sesión, rol o CRON_SECRET): no se redirigen.
   if (request.nextUrl.pathname.startsWith('/api/')) return response;
-  const atLogin = request.nextUrl.pathname === LOGIN;
+  // /ingresar y /ingresar/nueva-clave (recuperar contraseña) se abren sin sesión.
+  const atLogin = request.nextUrl.pathname === LOGIN || request.nextUrl.pathname.startsWith(LOGIN + '/');
   if (!user && !atLogin) return redirectKeepingCookies(request, response, LOGIN);
-  if (user && atLogin) return redirectKeepingCookies(request, response, '/');
+  if (user && request.nextUrl.pathname === LOGIN) return redirectKeepingCookies(request, response, '/');
   return response;
 }
 

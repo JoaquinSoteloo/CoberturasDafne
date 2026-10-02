@@ -479,3 +479,4 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 
 /* Celulares angostos: el nombre al lado del logo, un poco más chico para que entre con los botones. */
 @media(max-width:380px){.mobile-header .brand-word,.cm-header .brand-word{font-size:15px}}
+.signin-card .text-link{background:none;border:0;cursor:pointer}
