@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { House, CalendarDays, Users, Wallet, LogOut } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
+import { BrandMark } from './brand';
 import { InstallHint } from './install-hint';
 import { PushPrompt, PushToggle } from './push-control';
 import { useStore, type SaveState } from './store';
@@ -13,7 +14,7 @@ const nav = [
   { href: '/pagos', label: 'Pagos', Icon: Wallet }
 ];
 const saveLabel: Record<SaveState, string> = { saved: 'Cambios guardados', saving: 'Guardando…', error: 'Sin guardar, reintentando' };
-function Brand(){return <Link href="/" className="brand" aria-label="Dafne, inicio"><span className="brand-word">dafne<span className="brand-flash" aria-hidden="true"/></span><span className="brand-caption">coberturas</span></Link>}
+function Brand(){return <Link href="/" className="brand-link" aria-label="Dafne, inicio"><BrandMark/></Link>}
 function SaveStatus({className=''}:{className?:string}){const {saveState}=useStore();return <p role="status" className={`save-status save-${saveState} ${className}`}><span aria-hidden="true"/>{saveLabel[saveState]}</p>}
 
 export function Shell({ children }: { children: React.ReactNode }) {

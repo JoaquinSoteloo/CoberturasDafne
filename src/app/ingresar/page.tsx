@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { BrandMark } from '@/components/brand';
 
 export default function SignIn() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function SignIn() {
     router.replace('/'); router.refresh();
   };
   return <main className="signin">
-    <div className="signin-brand"><span className="brand-word">dafne<span className="brand-flash" aria-hidden="true"/></span><span className="brand-caption">coberturas</span></div>
+    <div className="signin-brand"><BrandMark size={88}/></div>
     <form className="signin-card" onSubmit={submit}>
       <h1 className="signin-title">Ingresar</h1>
       <label className="block"><span className="label">Email</span><input className="field" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>

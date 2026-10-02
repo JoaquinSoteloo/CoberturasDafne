@@ -6,6 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
 import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
+import { BrandMark } from './brand';
 import { ReceiptControl } from './receipt-control';
 import { MapPreview } from './map-preview';
 import { PushPrompt, PushToggle } from './push-control';
@@ -68,7 +69,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   };
 
   const header = <header className="cm-header">
-    <span className="brand"><span className="brand-word">dafne<span className="brand-flash" aria-hidden="true"/></span><span className="brand-caption">coberturas</span></span>
+    <BrandMark/>
     <div className="flex items-center gap-1"><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
   </header>;
 
