@@ -3,7 +3,7 @@
 // Solo se guardan los archivos de la app, para que abra rápido, y una página
 // "Sin conexión" para cuando no hay internet.
 
-const VERSION = 'coberturas-v2';
+const VERSION = 'coberturas-v3';
 const SHELL = ['/offline.html', '/icons/icon-192.png'];
 
 self.addEventListener('install', event => {
@@ -47,7 +47,7 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = { body: event.data ? event.data.text() : '' }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'Coberturas', {
+  event.waitUntil(self.registration.showNotification(data.title || 'BS Marketing', {
     body: data.body || '',
     icon: '/icons/icon-192.png',
     tag: data.tag,          // el mismo aviso no se repite en la bandeja

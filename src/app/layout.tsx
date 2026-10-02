@@ -14,11 +14,11 @@ const body = localFont({ src: './fonts/figtree-latin.woff2', weight: '400 800', 
 const themeScript=`try{var t=localStorage.getItem('dafne-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}`;
 
 export const metadata: Metadata = {
-  title: 'Coberturas',
+  title: 'BS Marketing',
   description: 'Fiestas, equipo, cobros y pagos de las coberturas de contenido.',
-  applicationName: 'Coberturas',
+  applicationName: 'BS Marketing',
   // En iPhone, instalada desde "Agregar a inicio": pantalla completa con la barra de estado sobre el índigo.
-  appleWebApp: { capable: true, title: 'Coberturas', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'BS Marketing', statusBarStyle: 'black-translucent' },
   formatDetection: { telephone: false }
 };
 export const viewport: Viewport = {

@@ -1,4 +1,4 @@
-# Dafne · Coberturas
+# BS Marketing · Coberturas
 
 Prototipo funcional de gestión de coberturas de contenido, con Next.js App Router, TypeScript y Tailwind CSS.
 

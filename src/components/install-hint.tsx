@@ -33,7 +33,7 @@ export function InstallHint() {
   return <aside className="install-hint" aria-label="Instalar la app">
     <Image src="/icons/icon-192.png" alt="" width={44} height={44}/>
     <div className="min-w-0 flex-1">
-      <p className="font-bold">Instalá Coberturas en tu celular</p>
+      <p className="font-bold">Instalá la app en tu celular</p>
       {mode === 'ios'
         ? <p className="text-sm">Tocá <Share size={14} className="inline align-[-2px]" aria-label="Compartir"/> y después <b>Agregar a inicio</b>.</p>
         : <button type="button" className="btn btn-primary btn-small mt-2" onClick={() => void install()}><Download size={16}/> Instalar</button>}

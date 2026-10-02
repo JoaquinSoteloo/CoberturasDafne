@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Coberturas',
-    short_name: 'Coberturas',
+    name: 'BS Marketing',
+    short_name: 'BS Marketing',
     description: 'Fiestas, equipo, cobros y pagos de las coberturas de contenido.',
     lang: 'es-AR',
     start_url: '/',

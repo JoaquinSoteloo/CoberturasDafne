@@ -14,7 +14,7 @@ const nav = [
   { href: '/pagos', label: 'Pagos', Icon: Wallet }
 ];
 const saveLabel: Record<SaveState, string> = { saved: 'Cambios guardados', saving: 'Guardando…', error: 'Sin guardar, reintentando' };
-function Brand(){return <Link href="/" className="brand-link" aria-label="Dafne, inicio"><BrandMark/></Link>}
+function Brand(){return <Link href="/" className="brand-link" aria-label="BS Marketing, inicio"><BrandMark/></Link>}
 function SaveStatus({className=''}:{className?:string}){const {saveState}=useStore();return <p role="status" className={`save-status save-${saveState} ${className}`}><span aria-hidden="true"/>{saveLabel[saveState]}</p>}
 
 export function Shell({ children }: { children: React.ReactNode }) {
