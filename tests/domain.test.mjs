@@ -77,3 +77,18 @@ test('historial de una CM separa pagos por cobertura y conserva pagos de cancela
   const reimbursed=cmCoverageHistory(db,'cm-luli').find(h=>h.coverage.id==='cov-1');
   assert.equal(reimbursed.totalCents,9850000);assert.equal(reimbursed.hasReimbursements,true);
 });
+
+test('detecta lo cobrado de más y valida corregir un cobro', async () => {
+  const { overCollected, validateCollectionEdit } = await import('../src/lib/domain.ts');
+  const db = createSeed();
+  const coverage = db.coverages.find(c => c.id === 'cov-4'); // acordado $180.000, cobrado $90.000
+  assert.equal(overCollected(db, coverage), 0);
+  // Se cargó un cobro de $200.000 y después el acordado quedó en $150.000 (lo que pasó en la fiesta real).
+  const wrong = { ...db, coverages: db.coverages.map(c => c.id === 'cov-4' ? { ...c, agreedCents: 15000000 } : c), collections: [{ id: 'col-1', coverageId: 'cov-4', date: '2026-10-01', amountCents: 20000000, notes: '' }] };
+  assert.equal(overCollected(wrong, wrong.coverages.find(c => c.id === 'cov-4')), 5000000);
+  assert.equal(validateCollectionEdit(wrong, 'col-1', 15000000), '');            // bajarlo para corregir: sí
+  assert.equal(validateCollectionEdit(db, 'col-1', 9000000 + 9000000), '');      // subirlo hasta lo acordado: sí
+  assert.match(validateCollectionEdit(db, 'col-1', 18000001), /más de lo acordado/); // pasarse: no
+  assert.match(validateCollectionEdit(db, 'col-1', 0), /anulalo/);
+  assert.match(validateCollectionEdit(db, 'no-existe', 100), /No encontramos/);
+});

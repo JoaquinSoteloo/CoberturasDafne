@@ -35,6 +35,17 @@ export const monthly = (db: Db, month: string) => {
     paid: rows.reduce((s,c)=>s+c.expenses.filter(e=>e.kind==='uber'&&e.paymentStatus==='pagado'&&e.advancedBy!=='cm').reduce((n,e)=>n+e.amountCents,0),0) + db.cmPayments.reduce((s, p) => s + p.allocations.filter(a => rows.some(c => c.assignments.some(x => `fee:${x.id}` === a.conceptId) || c.expenses.some(x => `expense:${x.id}` === a.conceptId))).reduce((n, a) => n + a.amountCents, 0), 0)
   };
 };
+/** Lo cobrado por encima de lo acordado (por ejemplo, un cobro cargado antes de bajar el acordado). */
+export const overCollected = (db: Db, c: Coverage) => Math.max(0, collected(db, c.id) - expectedIncome(c));
+/** Corregir un cobro ya registrado: se puede bajar siempre; subirlo, solo hasta lo acordado. */
+export const validateCollectionEdit = (db: Db, collectionId: string, cents: number) => {
+  const current = db.collections.find(x => x.id === collectionId);
+  const coverage = current && db.coverages.find(c => c.id === current.coverageId);
+  if (!current || !coverage) return 'No encontramos ese cobro.';
+  if (!Number.isInteger(cents) || cents <= 0) return 'Ingresá un importe mayor a cero. Para sacarlo, anulalo.';
+  if (cents > current.amountCents && collected(db, coverage.id) - current.amountCents + cents > expectedIncome(coverage)) return 'Con ese importe se cobraría más de lo acordado con el salón.';
+  return '';
+};
 export const validateCollection = (db: Db, coverageId: string, cents: number) => {
   const coverage = db.coverages.find(c => c.id === coverageId);
   if (!coverage || !active(coverage)) return 'Elegí una cobertura activa.';

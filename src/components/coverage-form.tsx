@@ -8,7 +8,7 @@ import { useStore } from './store';
 import { MoneyField } from './ui';
 import { newId } from '@/lib/repository';
 import { ars } from '@/lib/money';
-import { conceptPaid, expenseIsPaid } from '@/lib/domain';
+import { collected, conceptPaid, expectedIncome, expenseIsPaid } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
 import type { Coverage, Expense } from '@/lib/types';
@@ -34,6 +34,8 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     setError('');
     if (form.expenses.some(x=>x.kind==='uber' && x.paymentStatus==='pendiente' && conceptPaid(db,`expense:${x.id}`)>=x.amountCents)) { setError('Este Uber ya fue liquidado. No se puede marcar como pendiente sin ajustar el pago registrado.'); return; }
     const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
+    // Lo que pasó con la primera fiesta: el acordado se bajó después de registrar el cobro.
+    if (initial && expectedIncome(cleaned) < collected(db, cleaned.id) && !confirm(`Ya registraste cobros por ${ars(collected(db, cleaned.id))} y lo acordado queda en ${ars(expectedIncome(cleaned))}. Si el cobro fue por el monto viejo, después corregilo desde Pagos. ¿Guardar igual?`)) return;
     update(db => {
       const settlements=form.expenses.filter(x=>x.kind==='uber'&&x.paymentStatus==='pagado'&&x.advancedBy==='cm'&&x.advancedCmId).flatMap(x=>{
         const remainder=x.amountCents-conceptPaid(db,`expense:${x.id}`);

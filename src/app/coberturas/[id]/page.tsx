@@ -14,7 +14,7 @@ import { tripSummary } from '@/lib/trip';
 import { MapPreview } from '@/components/map-preview';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
-import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal } from '@/lib/domain';
+import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal, overCollected } from '@/lib/domain';
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const {id}=use(params); const {db,ready,update,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|null>(null);
@@ -34,7 +34,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   };
   const pendingConcepts=concepts(db).filter(x=>x.coverageId===id);
   const toSettle=pendingConcepts.reduce((s,x)=>s+x.pendingCents,0);
-  const income=expectedIncome(c); const got=collected(db,c.id); const owed=collectionPending(db,c);
+  const income=expectedIncome(c); const got=collected(db,c.id); const owed=collectionPending(db,c); const over=overCollected(db,c);
   const unconfirmed=c.assignments.filter(a=>a.confirmation!=='confirmada').length;
   const doneItems=c.checklist.filter(x=>x.done).length;
   const steps={
@@ -102,7 +102,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
               <div className="numbers-collect">
           <p className="numbers-label">Cobro al salón</p>
           {income>0?<><Meter done={got} total={income} label={`Cobrado ${ars(got)} de ${ars(income)}`}/><p className="text-sm">Cobrado {ars(got)} de {ars(income)}</p>
-            {owed>0?<Link href={`/pagos?tab=cobros&coverage=${id}&action=registrar`} className="btn btn-primary mt-3 w-full">Registrar cobro</Link>:<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobrado completo</p>}
+            {owed>0?<Link href={`/pagos?tab=cobros&coverage=${id}&action=registrar`} className="btn btn-primary mt-3 w-full">Registrar cobro</Link>:over>0?<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobraste {ars(over)} más de lo acordado. <Link href="/pagos?tab=cobros" className="underline">Corregilo en Pagos</Link>.</p>:<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobrado completo</p>}
             <p className="numbers-hint">Se puede registrar en cualquier momento: antes, durante o después de la fiesta.</p></>
           :<p className="numbers-hint">{cancelled?'Cancelada, sin cobro.':'Cargá el monto acordado en los datos del evento.'}</p>}
         </div>
