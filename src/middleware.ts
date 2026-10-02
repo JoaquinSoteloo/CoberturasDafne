@@ -31,5 +31,6 @@ function redirectKeepingCookies(request: NextRequest, from: NextResponse, path: 
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)']
+  // Sin sesión también se tienen que poder pedir el manifiesto, el service worker y los íconos: si no, no se puede instalar.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|icons/|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)']
 };

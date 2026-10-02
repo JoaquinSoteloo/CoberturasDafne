@@ -6,6 +6,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
 import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
+import { InstallHint } from './install-hint';
 
 type Item = { id: string; text: string; done: boolean };
 type Mate = { name: string; phone: string; confirmation: string };
@@ -76,6 +77,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const toAnswer = upcoming.filter(d => d.confirmation === 'pendiente' && d.event_status === 'pendiente').length;
 
   return <>{header}<main className="cm-page space-y-7">
+    <InstallHint/>
     <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{toAnswer ? `Tenés ${toAnswer === 1 ? 'una fecha' : `${toAnswer} fechas`} para confirmar.` : upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
     <div className="coverage-view-switch" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Mis fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Mis pagos</button></div>
 
