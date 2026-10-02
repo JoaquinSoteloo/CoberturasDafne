@@ -10,10 +10,10 @@ export const createSeed = (): Db => ({
   version: 1,
   salons: [{ id: 'salon-eclipse', name: 'Eclipse', address: 'Av. Libertador 1240, CABA' }],
   cms: [
-    { id: 'cm-luli', name: 'Lucía Fernández', phone: '11 5555-0101', usualFeeCents: 8500000, notes: 'Prefiere eventos de tarde.' },
-    { id: 'cm-mica', name: 'Micaela Torres', phone: '11 5555-0102', usualFeeCents: 9000000, notes: '' },
-    { id: 'cm-juli', name: 'Julieta Romero', phone: '11 5555-0103', usualFeeCents: 8500000, notes: '' },
-    { id: 'cm-rochi', name: 'Rocío Álvarez', phone: '11 5555-0104', usualFeeCents: 9500000, notes: '' }
+    { id: 'cm-luli', name: 'Lucía Fernández', phone: '11 5555-0101', email: '', usualFeeCents: 8500000, notes: 'Prefiere eventos de tarde.' },
+    { id: 'cm-mica', name: 'Micaela Torres', phone: '11 5555-0102', email: '', usualFeeCents: 9000000, notes: '' },
+    { id: 'cm-juli', name: 'Julieta Romero', phone: '11 5555-0103', email: '', usualFeeCents: 8500000, notes: '' },
+    { id: 'cm-rochi', name: 'Rocío Álvarez', phone: '11 5555-0104', email: '', usualFeeCents: 9500000, notes: '' }
   ],
   coverages: [
     { id: 'cov-1', name: 'Cumple de Martina', partyType: '15 años', client: 'Familia Gómez', salonId: 'salon-eclipse', address: 'Av. Libertador 1240, CABA', startsAt: day(3, '21:00'), endsAt: day(4, '04:00'), notes: 'Llegar 20 minutos antes.', assignments: [{ id: 'as-1', cmId: 'cm-luli', feeCents: 8500000, confirmation: 'confirmada' }], agreedCents: 16000000, expenses: [{ id: 'ex-1', label: 'Uber de ida', kind: 'uber', amountCents: 1350000, advancedBy: 'cm', advancedCmId: 'cm-luli', absorbedBy: 'salon' }], checklist: [{ id: 'ch-1', text: 'Historias de entrada', done: false }, { id: 'ch-2', text: 'Video del vals', done: false }], driveUrl: '', deliveredPieces: 0, deliveryNotes: '', eventStatus: 'pendiente', deliveryStatus: 'pendiente' },

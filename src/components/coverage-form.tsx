@@ -57,7 +57,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
       <label><span className="label">Cliente · opcional</span><input className="field" value={form.client} onChange={e => change('client',e.target.value)}/></label>
       <label><span className="label">Salón *</span><select className="field" value={form.salonId} onChange={e => { const s=db.salons.find(x=>x.id===e.target.value); setForm(f=>({...f,salonId:e.target.value,address:s?.address||f.address})); }}>{db.salons.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => change('startsAt',e.target.value)} required/></label>
-      <label className="sm:col-span-2"><span className="label">Observaciones</span><textarea className="field" value={form.notes} onChange={e => change('notes',e.target.value)}/></label>
+      <label className="sm:col-span-2"><span className="label">Observaciones</span><textarea className="field" value={form.notes} onChange={e => change('notes',e.target.value)}/><span className="muted mt-2 block text-sm">Las ven las CM asignadas a esta fiesta.</span></label>
       <label><span className="label">Estado del evento</span><select className="field" value={form.eventStatus} onChange={e => change('eventStatus',e.target.value as Coverage['eventStatus'])}><option value="pendiente">Pendiente</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select></label>
       <MoneyField label="Importe acordado con el salón" value={form.agreedCents} onChange={v => change('agreedCents',v)}/>
     </section>}

@@ -95,7 +95,7 @@ textarea.field{min-height:90px;resize:vertical}
 .mobile-header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;padding-top:calc(16px + env(safe-area-inset-top));background:var(--night);color:#fff}
 .profile-avatar{display:grid;place-items:center;width:38px;height:38px;flex-shrink:0;border-radius:50%;background:var(--rosa);color:#fff;font-weight:800}
 .main-content{max-width:1240px;margin:auto;padding:26px 16px calc(110px + env(safe-area-inset-bottom))}
-.mobile-demo{margin-top:36px;font-size:12px;text-align:center;color:var(--muted)}
+
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:var(--night)}
 .bottom-nav a{display:flex;min-height:54px;flex-direction:column;justify-content:center;align-items:center;gap:4px;border-radius:14px;font-size:12px;font-weight:700;color:#c9c2e0}
 .bottom-nav a[aria-current=page]{background:var(--flash);color:var(--on-flash)}
@@ -326,8 +326,8 @@ a.ledger-row:hover{background:var(--sunken)}
   .sidebar-footer{display:flex;align-items:center;gap:10px;margin-top:8px;padding:16px 10px;border-top:1px solid #ffffff1f}
   .sidebar-footer strong{font-size:14px}
   .sidebar-footer span:not(.profile-avatar){display:block;font-size:13px;color:#bdb5d6}
-  .demo-caption{font-size:12px;line-height:1.6;color:#9d94bb;padding:0 10px}
-  .mobile-header,.bottom-nav,.mobile-demo{display:none}
+
+  .mobile-header,.bottom-nav{display:none}
   .main-content{padding:40px 32px 56px}
   .dialog-content{top:50%;left:50%;bottom:auto;transform:translate(-50%,-50%);max-width:720px;width:calc(100% - 48px);max-height:90dvh;border-radius:24px}
   .drawer-grip{display:none}
@@ -374,3 +374,31 @@ a.ledger-row:hover{background:var(--sunken)}
   .month-profit{padding:20px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* ---------- Ingreso y estado de guardado ---------- */
+.signin{min-height:100dvh;display:grid;place-content:center;gap:28px;padding:32px 16px;background:var(--night);color:#fff}
+.signin-brand{display:flex;flex-direction:column;align-items:center;line-height:1}
+.signin-brand .brand-word{font-size:44px}
+.signin-card{width:min(380px,calc(100vw - 32px));display:grid;gap:16px;padding:26px 24px;border-radius:20px;background:var(--surface);color:var(--ink)}
+.signin-title{font-family:var(--display);font-weight:600;font-size:24px;letter-spacing:-.03em}
+.save-status{display:flex;align-items:center;gap:7px;font-size:13px;color:#bdb5d6}
+.save-status span{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.save-saving span{background:var(--flash)}
+.save-error span{background:var(--danger)}
+.save-error{color:var(--flash)}
+.mobile-save{justify-content:center;margin-top:32px;color:var(--muted)}
+@media(min-width:768px){.mobile-save{display:none}}
+
+/* ---------- Vista de la CM ---------- */
+.cm-header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;padding-top:calc(16px + env(safe-area-inset-top));background:var(--night);color:#fff}
+.cm-page{max-width:760px;margin:auto;padding:28px 16px calc(40px + env(safe-area-inset-bottom))}
+.cm-answer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-top:16px;padding:14px 16px;border-radius:14px;background:var(--sunken)}
+.answer-pendiente{background:var(--flash-soft);box-shadow:inset 0 0 0 1.5px var(--flash)}
+.cm-team{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.cm-team li{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px}
+.cm-past summary{min-height:44px;display:flex;align-items:center}
+.access-card{margin:0;padding:16px;border-radius:14px;background:var(--sunken);display:grid;gap:10px}
+.access-card dt{font-size:13px;color:var(--muted)}
+.access-card dd{margin:2px 0 0;font-weight:700;overflow-wrap:anywhere}
+.access-password{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.02em}
+@media(min-width:768px){.cm-header{padding:18px 32px}.cm-page{padding-top:40px}}
