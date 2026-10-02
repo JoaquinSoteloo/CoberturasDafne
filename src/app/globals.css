@@ -442,11 +442,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 
 /* Mapa de la cobertura: la vista no recibe toques; todo el bloque abre Google Maps. */
 .map-preview{display:block;width:100%;overflow:hidden;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.map-frame{display:block}
 .map-preview iframe{display:block;width:100%;height:170px;border:0;pointer-events:none;background:var(--sunken)}
-.map-caption{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:14px;font-weight:600}
+.map-caption{display:flex;align-items:center;gap:8px;padding:10px 14px 0;font-size:14px;font-weight:600}
 .map-caption svg{flex-shrink:0;color:var(--rosa)}
-.map-open{display:inline-flex;align-items:center;gap:4px;color:var(--accent-text);font-weight:700;white-space:nowrap}
-.map-preview:hover .map-open{text-decoration:underline}
+.map-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px 14px}
+.btn-uber{background:#000;color:#fff}
+.btn-uber:hover{background:#222}
 .ticket .map-preview iframe{height:140px}
 
 /* Avisos */
@@ -460,3 +462,5 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area
 .over-warning>p:first-child{display:flex;align-items:center;gap:8px;color:var(--warn-text)}
 .over-warning ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .over-warning li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.location-set{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:14px;font-weight:600;color:var(--ok)}
+.location-set .text-link{font-size:14px}

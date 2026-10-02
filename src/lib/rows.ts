@@ -34,7 +34,7 @@ const conceptId = (a: Pick<Allocation, 'assignment_id' | 'expense_id'>) => a.ass
 
 export function toRows(db: Db): Rows {
   return {
-    salons: db.salons.map(s => ({ id: s.id, name: s.name, address: s.address })),
+    salons: db.salons.map(s => ({ id: s.id, name: s.name, address: s.address, lat: s.lat ?? null, lng: s.lng ?? null })),
     cms: db.cms.map(c => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, usual_fee_cents: c.usualFeeCents, notes: c.notes })),
     coverages: db.coverages.map(c => ({
       id: c.id, name: c.name, party_type: c.partyType, client: c.client, salon_id: c.salonId, address: c.address,
@@ -76,7 +76,7 @@ export function fromRows(rows: Rows): Db {
   const checklist = groupBy(rows.checklist_items, 'coverage_id');
   return {
     version: 1,
-    salons: rows.salons.map(s => ({ id: s.id, name: str(s.name), address: str(s.address) })),
+    salons: rows.salons.map(s => ({ id: s.id, name: str(s.name), address: str(s.address), ...(s.lat != null && s.lng != null ? { lat: Number(s.lat), lng: Number(s.lng) } : {}) })),
     cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes) })),
     coverages: rows.coverages.map(c => ({
       id: c.id, name: str(c.name), partyType: str(c.party_type), client: str(c.client), salonId: str(c.salon_id), address: str(c.address),

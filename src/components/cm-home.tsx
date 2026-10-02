@@ -17,6 +17,7 @@ type Mate = { name: string; phone: string; confirmation: string };
 type CmDate = {
   id: string; name: string; party_type: string; client: string; salon: string; address: string;
   starts_at: string; ends_at: string | null; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
+  lat: number | null; lng: number | null;
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; team: Mate[];
 };
@@ -94,7 +95,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
           <h2 className="ticket-name">{d.name}</h2>
           <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
           <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
-          {d.address && d.starts_at.slice(0, 10) >= now && <div className="mt-4"><MapPreview address={d.address} label={d.salon}/></div>}
+          {d.address && d.starts_at.slice(0, 10) >= now && <div className="mt-4"><MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/></div>}
           {d.notes && <p className="ticket-note">{d.notes}</p>}
 
           {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>

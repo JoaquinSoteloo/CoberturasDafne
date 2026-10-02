@@ -93,3 +93,11 @@ test('los datos del viaje van y vuelven, con fechas como las devuelve Postgres',
   assert.deepStrictEqual(fromRows(rows), withTrip);
   assert.equal(toRows(db).expenses[0].trip_from, null);
 });
+
+test('la ubicación del salón va y vuelve; sin ubicación queda sin coordenadas', () => {
+  const db = createSeed();
+  const located = { ...db, salons: db.salons.map(s => ({ ...s, lat: -34.5551, lng: -58.5543 })) };
+  assert.deepStrictEqual(fromRows(toRows(located)).salons, located.salons);
+  assert.equal(toRows(db).salons[0].lat, null);
+  assert.equal('lat' in fromRows(toRows(db)).salons[0], false);
+});
