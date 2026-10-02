@@ -36,7 +36,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const steps={
     before:c.assignments.length>0&&unconfirmed===0,
     night:c.eventStatus==='realizado',
-    after:c.deliveryStatus==='entregada'&&owed===0,
+    after:c.deliveryStatus==='entregada',
   };
   const cancelled=c.eventStatus==='cancelado';
   return <div className="space-y-7">
@@ -72,13 +72,11 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           </div>
         </li>
         <li className={`step ${steps.after?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">Después</h2><p className="step-note">{c.deliveryStatus==='entregada'?'Contenido entregado':'Falta entregar el contenido'}{owed>0?` y cobrar ${ars(owed)}`:''}</p></div>
+          <div className="step-head"><h2 className="step-title">Después</h2><p className="step-note">{c.deliveryStatus==='entregada'?'Contenido entregado':'Falta entregar el contenido'}</p></div>
           <div className="step-body">
             <div className="sub-head"><h3>Entrega</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar entrega</button></div>
             <div className="flex flex-wrap items-center gap-3"><span className={`badge ${c.deliveryStatus==='entregada'?'badge-success':'badge-warn'}`}>{cap(c.deliveryStatus)}</span>{c.deliveredPieces>0&&<span className="font-semibold">{c.deliveredPieces} {c.deliveredPieces===1?'pieza':'piezas'}</span>}{c.driveUrl&&<a href={c.driveUrl} target="_blank" rel="noopener noreferrer" className="text-link inline-flex items-center gap-1"><FolderOpen size={16}/> Abrir carpeta de Drive</a>}</div>
             {c.deliveryNotes&&<p className="muted mt-2 text-sm">{c.deliveryNotes}</p>}
-            <div className="sub-head mt-6"><h3>Cobro al salón</h3></div>
-            {income>0?<><Meter done={got} total={income} label={`Cobrado ${ars(got)} de ${ars(income)}`}/><p className="muted text-sm">Cobrado {ars(got)} de {ars(income)}</p>{owed>0&&<Link href={`/pagos?tab=cobros&coverage=${id}&action=registrar`} className="btn btn-secondary btn-small mt-3">Registrar cobro de {ars(owed)}</Link>}</>:<p className="muted text-sm">{cancelled?'Cancelada, sin cobro.':'Cargá el monto acordado en los datos del evento.'}</p>}
           </div>
         </li>
       </ol>
@@ -94,6 +92,13 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           <div><dt>Falta cobrar</dt><dd>{ars(owed)}</dd></div>
           <div><dt>Falta pagar al equipo</dt><dd>{ars(toSettle)}</dd></div>
         </dl>
+              <div className="numbers-collect">
+          <p className="numbers-label">Cobro al salón</p>
+          {income>0?<><Meter done={got} total={income} label={`Cobrado ${ars(got)} de ${ars(income)}`}/><p className="text-sm">Cobrado {ars(got)} de {ars(income)}</p>
+            {owed>0?<Link href={`/pagos?tab=cobros&coverage=${id}&action=registrar`} className="btn btn-primary mt-3 w-full">Registrar cobro</Link>:<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobrado completo</p>}
+            <p className="numbers-hint">Se puede registrar en cualquier momento: antes, durante o después de la fiesta.</p></>
+          :<p className="numbers-hint">{cancelled?'Cancelada, sin cobro.':'Cargá el monto acordado en los datos del evento.'}</p>}
+        </div>
       </aside>
     </div>
     {editing&&<Modal title={{event:'Datos del evento',team:'Equipo de la cobertura',expenses:'Gastos y traslados',content:'Contenido y entrega'}[editing]} onClose={()=>setEditing(null)}><CoverageForm section={editing} initial={c} onDone={()=>setEditing(null)}/></Modal>}

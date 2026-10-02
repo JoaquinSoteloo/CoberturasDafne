@@ -410,3 +410,11 @@ a.ledger-row:hover{background:var(--sunken)}
 .install-close:hover{background:var(--sunken)}
 /* Instalada en el celular no hay botón "atrás" del navegador ni recarga con el dedo: que no rebote. */
 @media (display-mode: standalone){body{overscroll-behavior-y:none}}
+
+/* Campo de plata: el signo adentro, a la izquierda. */
+.money-field{position:relative;display:block}
+.money-field>span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;pointer-events:none}
+.money-field .field{padding-left:30px;font-variant-numeric:tabular-nums}
+.numbers-collect{margin-top:20px;padding-top:16px;border-top:1px solid #ffffff26}
+.numbers-collect .meter{background:#ffffff26;max-width:none}
+.numbers-hint{margin-top:10px;font-size:13px;line-height:1.45;color:#bdb5d6}
