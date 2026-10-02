@@ -12,26 +12,31 @@ export function SalonLocationField({ address, coords, onChange }: { address: str
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const fix = async (value = link) => {
-    if (!value.trim()) return;
-    setError('');
-    const local = coordsFromText(extractLink(value));
-    if (local) { onChange(local); setLink(''); return; }
+  const resolve = async (payload: { url: string } | { address: string }) => {
     setBusy(true);
     try {
-      const response = await fetch('/api/maps-location', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: value }) });
+      const response = await fetch('/api/maps-location', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'No se pudo leer la ubicación.');
       onChange({ lat: data.lat, lng: data.lng }); setLink('');
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo leer la ubicación.'); }
     finally { setBusy(false); }
   };
+  const fix = (value = link) => {
+    if (!value.trim()) return;
+    setError('');
+    const local = coordsFromText(extractLink(value));
+    if (local) { onChange(local); setLink(''); return; }
+    return resolve({ url: value });
+  };
+  const fromAddress = () => { setError(''); return resolve({ address }); };
 
   return <fieldset className="space-y-2">
     <legend className="label">Ubicación en Google Maps</legend>
     {coords
       ? <p className="location-set"><Check size={16}/> Ubicación fijada. <a className="text-link" href={mapsSearchUrl(address, coords)} target="_blank" rel="noopener noreferrer">Verla en Maps</a> <button type="button" className="text-link" onClick={() => onChange(null)}>Quitar</button></p>
-      : <p className="muted text-sm">Sirve para que &quot;Pedir Uber&quot; deje en la puerta. Buscá el salón en Maps, tocá <b>Compartir</b>, <b>Copiar link</b> y pegalo acá.</p>}
+      : <p className="muted text-sm">Sirve para que &quot;Pedir Uber&quot; deje en la puerta. Ubicalo con la dirección cargada, o pegá el link que da <b>Compartir</b> en Google Maps.</p>}
+    {!coords && address.trim() && <button type="button" className="btn btn-primary btn-small" disabled={busy} onClick={() => void fromAddress()}><MapPinned size={15}/> {busy ? 'Buscando…' : 'Ubicar con la dirección'}</button>}
     <div className="flex gap-2">
       <input className="field" type="url" inputMode="url" placeholder="Pegá acá el link de Google Maps" value={link} aria-invalid={!!error}
         onChange={e => { setLink(e.target.value); setError(''); }}

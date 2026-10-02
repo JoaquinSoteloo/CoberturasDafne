@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase/server';
 import { coordsFromText, extractLink, isShortMapsLink } from '@/lib/maps';
+import { expandShortLink, lookupPlace } from '@/lib/google-place';
 
 export const runtime = 'nodejs';
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
-// Solo se siguen redirecciones dentro de Google: la ruta no sirve para pedir otras páginas.
-const GOOGLE = /(^|\.)(google\.[a-z.]{2,8}|goo\.gl|g\.co)$/;
 
 /**
- * Coordenadas de un link de Google Maps. Los links cortos (maps.app.goo.gl, los que da
- * "Compartir") no las traen: se abren acá siguiendo las redirecciones hasta el link largo.
+ * Coordenadas para fijar la ubicación de un salón, a partir de:
+ * - un link de Google Maps (los cortos de "Compartir" se abren acá; si el link final no trae
+ *   coordenadas, se busca el lugar que nombra), o
+ * - la dirección escrita del salón.
  */
 export async function POST(request: Request) {
   const supabase = await supabaseServer();
@@ -19,35 +20,28 @@ export async function POST(request: Request) {
   const { data: role } = await supabase.rpc('my_role');
   if (role !== 'coordinadora') return fail('Solo la coordinadora puede fijar ubicaciones.', 403);
 
-  const body = await request.json().catch(() => null) as { url?: unknown } | null;
-  const text = typeof body?.url === 'string' ? extractLink(body.url.slice(0, 2000)) : '';
-  if (!text) return fail('Pegá el link de Google Maps.', 400);
-
-  const direct = coordsFromText(text);
-  if (direct) return NextResponse.json(direct);
-  if (!isShortMapsLink(text)) return fail('Ese link no tiene la ubicación. En Google Maps tocá Compartir y Copiar link.', 422);
-
-  let url = text;
+  const body = await request.json().catch(() => null) as { url?: unknown; address?: unknown } | null;
   try {
-    for (let hop = 0; hop < 6; hop++) {
-      const response = await fetch(url, { redirect: 'manual', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Coberturas/1.0)' }, signal: AbortSignal.timeout(8000) });
-      const next = response.headers.get('location');
-      if (next) {
-        url = new URL(next, url).toString();
-        const host = new URL(url).hostname;
-        if (!GOOGLE.test(host) || !url.startsWith('https://')) return fail('Ese link no lleva a Google Maps.', 422);
-        const found = coordsFromText(url);
-        if (found) return NextResponse.json(found);
-        continue;
-      }
-      // Sin más redirecciones: la página de Maps trae las coordenadas en el link del lugar.
-      const html = (await response.text()).slice(0, 500_000);
-      const inPage = html.match(/!3d-?\d+(?:\.\d+)?!4d-?\d+(?:\.\d+)?/)?.[0] ?? html.match(/@-?\d+\.\d+,-?\d+\.\d+/)?.[0];
-      const found = inPage ? coordsFromText(inPage.startsWith('@') ? `https://www.google.com/maps/${inPage}` : inPage) : null;
-      return found ? NextResponse.json(found) : fail('No encontramos la ubicación en ese link. Probá copiándolo de nuevo desde Compartir.', 422);
+    if (typeof body?.address === 'string' && body.address.trim()) {
+      const found = await lookupPlace(body.address.trim().slice(0, 300));
+      return found ? NextResponse.json(found) : fail('No encontramos esa dirección en Google Maps. Probá pegando el link del salón.', 422);
     }
+
+    const text = typeof body?.url === 'string' ? extractLink(body.url.slice(0, 2000)) : '';
+    if (!text) return fail('Pegá el link de Google Maps.', 400);
+    const direct = coordsFromText(text);
+    if (direct) return NextResponse.json(direct);
+    if (!isShortMapsLink(text)) return fail('Ese link no tiene la ubicación. En Google Maps tocá Compartir y Copiar.', 422);
+
+    const long = await expandShortLink(text);
+    if (!long) return fail('Ese link no lleva a Google Maps.', 422);
+    const fromLong = coordsFromText(long);
+    if (fromLong) return NextResponse.json(fromLong);
+    // El link de "Compartir" termina en ?q=<nombre y dirección del lugar>: se busca ese lugar.
+    const place = new URL(long).searchParams.get('q');
+    const found = place ? await lookupPlace(place) : null;
+    return found ? NextResponse.json(found) : fail('No encontramos la ubicación en ese link. Probá con "Ubicar con la dirección".', 422);
   } catch {
-    return fail('No se pudo abrir el link. Revisá la conexión y probá de nuevo.', 502);
+    return fail('No se pudo consultar Google Maps. Revisá la conexión y probá de nuevo.', 502);
   }
-  return fail('No encontramos la ubicación en ese link.', 422);
 }

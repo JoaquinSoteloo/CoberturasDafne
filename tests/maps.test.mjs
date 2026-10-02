@@ -46,3 +46,13 @@ test('saca el link del texto que se copia al compartir desde Maps', async () => 
   assert.equal(extractLink('  https://maps.app.goo.gl/x  '), 'https://maps.app.goo.gl/x');
   assert.equal(extractLink('-34.55, -58.55'), '-34.55, -58.55');
 });
+
+test('lee el lugar de la página del mapa embebido de Google', async () => {
+  const { placeFromEmbedHtml } = await import('../src/lib/google-place.ts');
+  // Fragmento real de la página para "Eclipse Kids, Almte Brown 2975, Villa Ballester".
+  const html = '[[[3286.086095721188,-58.55724679999999,-34.551373],[0,0,0],null,13.1]]...["0x95bcb90009a44441:0x68110ee7363e5b33","Eclipse Kids, Almte Brown 2975, B1653 Villa Ballester, Provincia de Buenos Aires",[-34.551373,-58.55724679999999],"7498791240758876979"]';
+  assert.deepStrictEqual(placeFromEmbedHtml(html), { lat: -34.551373, lng: -58.55724679999999 });
+  // Sin el lugar, usa el centro de la vista (que viene como [zoom, lng, lat]).
+  assert.deepStrictEqual(placeFromEmbedHtml('[[[3286.08,-58.5572,-34.5513],[0,0,0]]]'), { lat: -34.5513, lng: -58.5572 });
+  assert.equal(placeFromEmbedHtml('<html>nada</html>'), null);
+});
