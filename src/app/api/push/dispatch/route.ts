@@ -33,6 +33,8 @@ export async function POST(request: Request) {
   if (followupsError) return NextResponse.json({ error: followupsError.message }, { status: 500 });
   const { data: live, error: liveError } = await admin.rpc('enqueue_live');
   if (liveError) return NextResponse.json({ error: liveError.message }, { status: 500 });
+  const { data: ubers, error: ubersError } = await admin.rpc('enqueue_uber_reminders');
+  if (ubersError) return NextResponse.json({ error: ubersError.message }, { status: 500 });
   const { data, error } = await admin.rpc('pending_notifications', { p_limit: 100, p_kinds: KINDS });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -64,5 +66,5 @@ export async function POST(request: Request) {
     const { error: removeError } = await admin.storage.from('comprobantes').remove(orphans as string[]);
     if (!removeError) removedReceipts = orphans.length;
   }
-  return NextResponse.json({ reminders, followups, live, sent: sent.length, failed: failed.length, removedSubscriptions: gone.length, removedReceipts });
+  return NextResponse.json({ reminders, followups, live, ubers, sent: sent.length, failed: failed.length, removedSubscriptions: gone.length, removedReceipts });
 }

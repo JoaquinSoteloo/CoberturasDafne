@@ -117,3 +117,10 @@ test('la CM borra un Uber que había cargado: aviso a Dafne', () => {
   assert.equal(m.title, 'Isis borró un Uber');
   assert.match(m.body, /^\$\s13\.500 · Uber de ida · Cumple de Martina\.$/);
 });
+
+test('recordatorio a la CM de cargar sus Ubers', () => {
+  const m = buildMessage({ kind: 'uber_missing', data: coverage, for_coordinator: false });
+  assert.equal(m.title, '¿Tomaste Uber?');
+  assert.equal(m.body, 'Cumple de Martina: si tomaste Uber, cargalo con el comprobante desde tu fecha.');
+  assert.equal(m.url, '/?fecha=cov-1');
+});
