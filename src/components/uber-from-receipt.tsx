@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScanLine, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from './store';
+import { selfCmId } from '@/lib/domain';
 import { Modal, MoneyField } from './ui';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, shrink } from '@/lib/receipts';
@@ -14,7 +15,8 @@ type Draft = { direction: 'ida' | 'vuelta' | null; amountCents: number; payer: s
 
 /** "Cargar Uber desde comprobante": la IA lee la captura, Dafne revisa y confirma, y se crea el gasto con el comprobante. */
 export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
-  const { db, update, saveState } = useStore();
+  const { db, update, saveState, email } = useStore();
+  const selfId = selfCmId(db, email);
   const input = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
   const [file, setFile] = useState<{ blob: Blob; name: string } | null>(null);
@@ -30,8 +32,8 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
   const guess = read ? guessDirection(read, coverage, coverage.address || salon?.address) : null;
   const warning = read ? dateWarning(read, coverage.startsAt) : null;
   const cms = coverage.assignments.filter(a => a.confirmation !== 'rechazada').map(a => db.cms.find(cm => cm.id === a.cmId)).filter(Boolean) as { id: string; name: string }[];
-  // Los Ubers los suelen pagar las CM y Dafne se los devuelve: si va una sola, queda a su nombre.
-  const defaultPayer = cms.length === 1 ? cms[0].id : 'coordinadora';
+  // Dafne no va a las fiestas: todo Uber es de una CM y Dafne se lo devuelve. Si va una sola, queda a su nombre.
+  const defaultPayer = cms.length === 1 ? cms[0].id : '';
 
   const pick = async (picked?: File) => {
     if (!picked) return;
@@ -62,14 +64,16 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
     if (!draft || !file) return;
     if (!draft.direction) { setError('Elegí si es el Uber de ida o el de vuelta.'); return; }
     if (draft.amountCents <= 0) { setError('Revisá el importe: tiene que ser mayor a cero.'); return; }
+    if (!draft.payer) { setError(cms.length ? 'Elegí de qué CM es el Uber.' : 'Asigná la CM a la fiesta antes de cargar su Uber.'); return; }
     const expense: Expense = {
       id: newId(), label: draft.direction === 'ida' ? 'Uber de ida' : 'Uber de vuelta', kind: 'uber', amountCents: draft.amountCents,
-      paymentStatus: 'pendiente', absorbedBy: draft.absorbedBy,
+      absorbedBy: draft.absorbedBy,
       tripFrom: draft.from.trim() || undefined, tripTo: draft.to.trim() || undefined,
       // Con la fecha del comprobante si se leyó; si no, la de la fiesta (o la madrugada siguiente).
       tripStartedAt: draft.start ? tripTimestamp(coverage.startsAt, draft.start, read?.date) : undefined,
       tripEndedAt: draft.end ? tripTimestamp(coverage.startsAt, draft.end, read?.date) : undefined,
-      ...(draft.payer === 'coordinadora' ? { advancedBy: 'coordinadora' as const } : { advancedBy: 'cm' as const, advancedCmId: draft.payer })
+      // Si el Uber es de Dafne (cubrió ella la fiesta), es gasto suyo y ya está pago.
+      ...(draft.payer === selfId ? { advancedBy: 'coordinadora' as const, paymentStatus: 'pagado' as const } : { advancedBy: 'cm' as const, advancedCmId: draft.payer })
     };
     update(db => ({ ...db, coverages: db.coverages.map(c => c.id === coverage.id ? { ...c, expenses: [...c.expenses, expense] } : c) }));
     setPending({ expenseId: expense.id, file: new File([file.blob], file.name || 'comprobante', { type: file.blob.type }), sawSaving: false });
@@ -120,10 +124,10 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
           <label className="block"><span className="label">Salida</span><input className="field" type="time" value={draft.start} onChange={e => setDraft({ ...draft, start: e.target.value })}/></label>
           <label className="block"><span className="label">Llegada</span><input className="field" type="time" value={draft.end} onChange={e => setDraft({ ...draft, end: e.target.value })}/></label>
         </div>
-        <label className="block"><span className="label">¿Quién lo pagó?</span>
+        <label className="block"><span className="label">¿De qué CM es?</span>
           <select className="field" value={draft.payer} onChange={e => setDraft({ ...draft, payer: e.target.value })}>
-            <option value="coordinadora">Vos</option>
-            {cms.map(cm => <option key={cm.id} value={cm.id}>{cm.name} (se lo reintegrás)</option>)}
+            <option value="">Elegí la CM</option>
+            {cms.map(cm => <option key={cm.id} value={cm.id}>{cm.name}{cm.id === selfId ? ' (vos)' : ' (se lo devolvés)'}</option>)}
           </select></label>
         {error && <p role="alert" className="field-error">{error}</p>}
         <button className="btn btn-primary w-full">Guardar Uber</button>

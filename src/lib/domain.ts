@@ -98,3 +98,9 @@ export function byPartyType(db: Db, year: string) {
   }
   return [...groups.values()].sort((a, b) => b.count - a.count || b.profitCents - a.profitCents);
 }
+
+/** La ficha de CM de la propia Dafne (la que tiene su mismo email), para cuando ella también cubre una fiesta. */
+export const selfCmId = (db: Db, email: string) => {
+  const e = email.trim().toLowerCase();
+  return e ? db.cms.find(c => c.email.trim().toLowerCase() === e)?.id : undefined;
+};
