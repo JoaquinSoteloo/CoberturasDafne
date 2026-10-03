@@ -20,7 +20,20 @@ const openMercadoPago = () => {
   }
 };
 
+// Se copia como texto simple con el método clásico (algunas apps del iPhone no leen bien lo
+// copiado con el método nuevo); si no anda, se usa el nuevo.
+const copyPlain = (text: string) => {
+  try {
+    const field = document.createElement('textarea');
+    field.value = text; field.setAttribute('readonly', ''); field.style.position = 'fixed'; field.style.opacity = '0';
+    document.body.appendChild(field); field.select(); field.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(field);
+    return ok;
+  } catch { return false; }
+};
 const copy = async (text: string) => {
+  if (copyPlain(text)) return true;
   try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
 };
 
@@ -49,7 +62,7 @@ export function MpTransfer({ name, alias, amountCents }: { name: string; alias?:
       <p className="text-sm font-bold">Transferirle a {first}</p>
       <p className="muted truncate text-sm">Alias: <span className="font-semibold text-[var(--ink)]">{clean}</span></p>
       {amountCents > 0 && <p className="mt-1 text-sm">Monto: <strong className="text-base">{ars(amountCents)}</strong> <button type="button" className="text-link ml-1 inline-flex items-center gap-1" onClick={() => void copyAmount()}><Copy size={13}/> Copiar monto</button></p>}
-      {opened && <p className="muted mt-1 text-xs">Si Mercado Pago no muestra el alias, tocá “Transferir” y pegalo.</p>}
+      {opened && <p className="muted mt-1 text-xs">Si Mercado Pago no toma el alias solo: tocá “Transferir” → “Alias, CBU/CVU”, mantené apretado el campo y elegí “Pegar”.</p>}
     </div>
     <button type="button" className="btn btn-mp w-full" onClick={() => void go()}><Send size={16}/> Transferir con Mercado Pago</button>
   </div>;
