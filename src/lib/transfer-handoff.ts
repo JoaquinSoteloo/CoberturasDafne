@@ -6,4 +6,5 @@ import type { TransferData } from './transfer';
  */
 let pending: { file: File; data: TransferData } | null = null;
 export const handOffTransfer = (file: File, data: TransferData) => { pending = { file, data }; };
-export const takeTransfer = () => { const p = pending; pending = null; return p; };
+/** Lo devuelve y lo borra un instante después (si la pantalla se arma dos veces seguidas, las dos lo ven). */
+export const takeTransfer = () => { const p = pending; if (p) setTimeout(() => { if (pending === p) pending = null; }, 1000); return p; };

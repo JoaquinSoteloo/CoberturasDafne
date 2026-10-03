@@ -87,8 +87,8 @@ function PaymentsContent(){
     finally{setAttaching(false);}
   };
   // Comprobante leído desde el inicio ("Cargar comprobante"): se abre acá ya completo.
-  const [handedOff]=useState(()=>takeTransfer());
-  useEffect(()=>{if(handedOff){applyRead(handedOff.data,handedOff.file);window.history.replaceState(null,'','/pagos');}},[handedOff]); // eslint-disable-line react-hooks/exhaustive-deps
+  // (No se toca la dirección al abrirlo: cambiarla hace que Pagos se vuelva a armar y se pierda lo abierto.)
+  useEffect(()=>{const h=takeTransfer();if(h)applyRead(h.data,h.file);},[]); // eslint-disable-line react-hooks/exhaustive-deps
   const scanTransfer=async(file?:File,hint?:'cobros'|'pagos')=>{
     if(!file)return;
     setScanning(true);setScanInfo('');setError('');setReview(false);
