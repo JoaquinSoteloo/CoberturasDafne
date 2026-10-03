@@ -241,6 +241,7 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 6px;max-width:320px}
 .meter span{display:block;height:100%;border-radius:6px;background:var(--ok)}
 .ledger-card{overflow:hidden}
+.pay-month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pay-month{display:grid;gap:12px}
 .pay-month-head{display:grid;gap:6px}
 .pay-party{padding:16px;display:grid;gap:12px}

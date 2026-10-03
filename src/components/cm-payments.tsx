@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { FileCheck2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileCheck2 } from 'lucide-react';
+import { dayKey, shiftMonth } from '@/lib/calendar';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { openReceipt } from '@/lib/receipts';
@@ -60,6 +61,9 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
   const owedFees = sum(fees, owedOf), owedUbers = sum(ubers, owedOf), owed = owedFees + owedUbers;
   const months = [...new Set(concepts.map(c => c.starts_at.slice(0, 7)))].sort().reverse();
   const year = new Date().getFullYear().toString();
+  // Se ve un mes por vez. Arranca en el actual; si no trabajó este mes, en el último que trabajó.
+  const thisMonth = dayKey(new Date()).slice(0, 7);
+  const [month, setMonth] = useState(() => months.includes(thisMonth) || !months.length ? thisMonth : months[0]);
   const yearFees = sum(fees.filter(c => c.starts_at.startsWith(year)), c => c.amount_cents);
 
   return <section className="space-y-6" aria-label="Mis pagos">
@@ -68,15 +72,19 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
       <p className="muted mt-3 text-sm">En {year} llevás {ars(yearFees)} en honorarios. Los Ubers no cuentan como ganancia: es plata que pusiste vos.</p>
     </div></div></div>
 
-    {!months.length && <p className="muted">Todavía no tenés fiestas con honorarios cargados.</p>}
-    {months.map(m => {
+    <div className="pay-month-nav" role="group" aria-label="Mes">
+      <button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setMonth(shiftMonth(month, -1))}><ChevronLeft size={20}/></button>
+      <h2 className="section-title" aria-live="polite">{monthTitle(month)}</h2>
+      <button className="btn btn-quiet !px-2" aria-label="Mes siguiente" onClick={() => setMonth(shiftMonth(month, 1))}><ChevronRight size={20}/></button>
+    </div>
+    {!months.includes(month) && <p className="muted text-center">No trabajaste fiestas en {monthTitle(month).toLowerCase()}.</p>}
+    {months.filter(m => m === month).map(m => {
       const items = concepts.filter(c => c.starts_at.startsWith(m));
       const parties = [...new Set(items.map(c => c.coverage_id))];
       const total = sum(items, c => c.amount_cents), paid = sum(items, c => Math.min(c.paid_cents, c.amount_cents));
       const earned = sum(items.filter(c => c.kind === 'fee'), c => c.amount_cents);
       return <section key={m} className="pay-month" aria-label={monthTitle(m)}>
         <div className="pay-month-head">
-          <h2 className="section-title">{monthTitle(m)}</h2>
           <p className="muted text-sm">{parties.length === 1 ? '1 fiesta' : `${parties.length} fiestas`} · ganaste {ars(earned)}</p>
           <Meter done={paid} total={total} label={`Cobraste ${ars(paid)} de ${ars(total)}`}/>
           <p className="muted text-sm">Cobraste {ars(paid)} de {ars(total)}{total > paid ? ` · te falta ${ars(total - paid)}` : ''}</p>
