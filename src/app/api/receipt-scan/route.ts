@@ -35,13 +35,14 @@ Devolvé:
 - origen y destino: las direcciones tal como aparecen.
 Si un dato no está o no se lee con seguridad, devolvé null. No inventes datos.`;
 
-/** Lee un comprobante de viaje con IA. Solo la coordinadora puede usarlo. Los datos se confirman a mano antes de guardar. */
+/** Lee un comprobante de viaje con IA. Lo usan la coordinadora y las CM. Los datos se confirman a mano antes de guardar. */
 export async function POST(request: Request) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return fail('Tu sesión venció. Volvé a ingresar.', 401);
   const { data: role } = await supabase.rpc('my_role');
-  if (role !== 'coordinadora') return fail('Solo la coordinadora puede cargar comprobantes.', 403);
+  // La coordinadora y las CM (para cargar sus Ubers). Los datos se confirman a mano antes de guardar.
+  if (role !== 'coordinadora' && role !== 'cm') return fail('Tu cuenta no está habilitada.', 403);
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return fail('Falta configurar OPENAI_API_KEY en el servidor.', 500);

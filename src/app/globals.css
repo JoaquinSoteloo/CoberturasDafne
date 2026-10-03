@@ -155,6 +155,8 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .profit-breakdown dt{font-size:13px;color:#bdb5d6}
 .profit-breakdown dd{margin:3px 0 0;font-size:17px;font-weight:700}
 .cm-uber-row{display:grid;gap:8px;justify-items:start;padding:10px 12px;border-radius:12px;background:var(--sunken)}
+.cm-uber-ai{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:12px;background:var(--accent-soft);font-size:14px;font-weight:600}
+.cm-uber-ai svg{flex-shrink:0;margin-top:2px;color:var(--accent)}
 .cm-uber-form{padding:14px;border-radius:14px;border:1.5px dashed var(--line)}
 .drive-link{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--accent);color:#fff;text-decoration:none}
 .drive-link:focus-visible{outline:3px solid var(--flash);outline-offset:3px}
