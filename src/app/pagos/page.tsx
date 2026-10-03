@@ -10,6 +10,7 @@ import { ArrowDownLeft, ArrowUpRight, Paperclip, ScanLine, TriangleAlert } from 
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, shrink } from '@/lib/receipts';
 import { classifyTransfer, conceptsFor, matchCm, matchCollection, type TransferData } from '@/lib/transfer';
+import { takeTransfer } from '@/lib/transfer-handoff';
 import { ReceiptControl } from '@/components/receipt-control';
 import { PaymentsByEvent } from '@/components/payments-by-event';
 import { MpTransfer } from '@/components/mp-transfer';
@@ -56,6 +57,14 @@ function PaymentsContent(){
     setModal(true);
   };
   // hint: si se cargó desde "Registrar cobro" o "Liquidar CM" y no se pudo saber qué es, se toma esa.
+  // Con lo leído: cobro de un salón o pago a una CM, ya completo para confirmar.
+  const applyRead=(r:TransferData,file:File,hint?:'cobros'|'pagos')=>{
+    const kind=classifyTransfer(db.cms,r,ownerWords)?.kind??(hint==='cobros'?'cobro':hint==='pagos'?'pago':null);
+    if(kind==='pago')applyPago(r,file);else if(kind==='cobro')applyCobro(r,file);else setUnsure({r,file});
+  };
+  // Comprobante leído desde el inicio ("Cargar comprobante"): se abre acá ya completo.
+  const [handedOff]=useState(()=>takeTransfer());
+  useEffect(()=>{if(handedOff){applyRead(handedOff.data,handedOff.file);window.history.replaceState(null,'','/pagos');}},[handedOff]); // eslint-disable-line react-hooks/exhaustive-deps
   const scanTransfer=async(file?:File,hint?:'cobros'|'pagos')=>{
     if(!file)return;
     setScanning(true);setScanInfo('');setError('');setReview(false);
@@ -66,8 +75,7 @@ function PaymentsContent(){
       if(!res.ok){toast.error(`${data.error||'No se pudo leer el comprobante.'} Completá los datos a mano.`);return;}
       const r=data as TransferData;
       if(!r.isTransfer){toast.error('No parece el comprobante de una transferencia. Revisá el archivo.');return;}
-      const kind=classifyTransfer(db.cms,r,ownerWords)?.kind??(hint==='cobros'?'cobro':hint==='pagos'?'pago':null);
-      if(kind==='pago')applyPago(r,file);else if(kind==='cobro')applyCobro(r,file);else setUnsure({r,file});
+      applyRead(r,file,hint);
     }catch(e){console.error('Cargar comprobante',e);toast.error(`Falló la app al usar el comprobante: ${e instanceof Error?e.message:String(e)}`);}
     finally{setScanning(false);}
   };

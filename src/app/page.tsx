@@ -6,6 +6,7 @@ import { Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useStore } from '@/components/store';
 import { QuickCoverageForm } from '@/components/quick-coverage-form';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
+import { QuickTransfer } from '@/components/quick-transfer';
 import { Empty, Modal, untilLabel } from '@/components/ui';
 import { Ticket } from '@/components/ticket';
 import { CalendarSubscribe } from '@/components/calendar-subscribe';
@@ -33,7 +34,7 @@ export default function Home() {
   const salon=(id:string)=>db.salons.find(s=>s.id===id)?.name;
   return <div className="space-y-9">
     <LiveNow items={liveItems} href={id=>`/coberturas/${id}`}/>
-    <div className="page-heading"><div><h1 className="page-title">Hola, Dafne</h1><p className="muted mt-2">{upcoming.length?`Tenés ${upcoming.length===4?'4 o más fiestas':upcoming.length===1?'una fiesta':`${upcoming.length} fiestas`} por delante.`:'No hay fiestas agendadas por ahora.'}</p></div><div className="flex flex-wrap gap-2"><UberFromReceipt label="Cargar recibo de Uber"/><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div></div>
+    <div className="page-heading"><div><h1 className="page-title">Hola, Dafne</h1><p className="muted mt-2">{upcoming.length?`Tenés ${upcoming.length===4?'4 o más fiestas':upcoming.length===1?'una fiesta':`${upcoming.length} fiestas`} por delante.`:'No hay fiestas agendadas por ahora.'}</p></div><div className="flex flex-wrap gap-2"><QuickTransfer/><UberFromReceipt label="Cargar recibo de Uber"/><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div></div>
     <div className="dashboard-columns">
       <section aria-labelledby="next-title"><div className="section-heading"><h2 id="next-title" className="section-title">Próxima fiesta</h2><Link href="/coberturas" className="text-link">Ver agenda</Link></div>
         {ready&&!next?<Empty title="Tu agenda está libre" detail="Creá una cobertura para organizar tu próximo evento."/>:next&&<>
