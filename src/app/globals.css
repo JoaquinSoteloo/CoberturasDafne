@@ -241,6 +241,12 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 6px;max-width:320px}
 .meter span{display:block;height:100%;border-radius:6px;background:var(--ok)}
 .ledger-card{overflow:hidden}
+.pay-summary{padding:18px 20px;display:grid;gap:14px}
+.pay-summary-kicker{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.pay-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pay-summary-label{font-size:13px;font-weight:700;color:var(--muted)}
+.pay-summary-value{font-family:var(--display);font-weight:600;font-size:clamp(22px,6.5vw,30px);letter-spacing:-.03em;line-height:1.15;white-space:nowrap}
+.pay-summary-value.is-owed{color:var(--warn-text)}
 .pay-month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pay-month{display:grid;gap:12px}
 .pay-month-head{display:grid;gap:6px}
@@ -250,13 +256,6 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .pay-docs{display:grid;gap:8px;padding-top:8px;border-top:1.5px dashed var(--line)}
 .pay-doc{display:grid;gap:4px;justify-items:start}
 .pay-doc-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-.owed-split{display:grid;gap:6px;margin:10px 0 0;max-width:340px}
-.owed-split>div{display:flex;justify-content:space-between;gap:12px;font-size:15px}
-.owed-split dt{color:var(--muted);font-weight:600}
-.owed-split dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
-.owed-split .owed-total{padding-top:6px;margin-top:2px;border-top:1.5px dashed var(--line)}
-.owed-split .owed-total dt{color:var(--ink);font-weight:800}
-.owed-split .owed-total dd{font-family:var(--display);font-size:clamp(24px,6vw,30px);letter-spacing:-.03em;line-height:1.1}
 .ledger-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding:22px 20px 18px;border-bottom:1.5px dashed var(--line)}
 .ledger-total{font-family:var(--display);font-weight:600;font-size:clamp(28px,4vw,36px);letter-spacing:-.04em;line-height:1.15;margin-top:4px}
 .ledger{list-style:none;margin:0;padding:0}

@@ -47,7 +47,7 @@ export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm, 
       {!locked && <button type="button" className="btn btn-quiet btn-small" disabled={disabled} onClick={() => input.current?.click()}><RefreshCw size={15}/>{busy === 'subiendo' ? 'Subiendo…' : 'Cambiar'}</button>}
       {!locked && canRemove && <button type="button" className="btn btn-quiet btn-small" disabled={disabled} aria-label={cm ? 'Borrar Uber' : `Quitar ${noun}`} onClick={remove}><Trash2 size={15}/>{busy === 'quitando' ? (cm ? 'Borrando…' : 'Quitando…') : cm ? 'Borrar Uber' : ''}</button>}
     </> : !locked && <button type="button" className="btn btn-secondary btn-small" disabled={disabled} onClick={() => input.current?.click()}><Paperclip size={16}/>{busy === 'subiendo' ? 'Subiendo…' : `Adjuntar ${noun}`}</button>}
-    {locked && <span className="muted text-sm">{path ? 'Ya está pago: si hay algo mal, avisale a Dafne.' : 'Ya está pago.'}</span>}
+    {locked && <span className="muted text-sm">{path ? 'Ya tiene un pago registrado: si hay algo mal, avisale a Dafne.' : 'Ya tiene un pago registrado.'}</span>}
     {disabledReason && <span className="muted text-sm">{disabledReason}</span>}
   </span>;
 }

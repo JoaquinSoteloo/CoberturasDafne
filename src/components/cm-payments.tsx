@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, FileCheck2 } from 'lucide-react';
 import { dayKey, shiftMonth } from '@/lib/calendar';
+import { cmSummary } from '@/lib/cm-summary';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { openReceipt } from '@/lib/receipts';
@@ -57,20 +58,23 @@ function Line({ c, preview, onChange }: { c: MoneyConcept; preview: boolean; onC
  * el recibo del viaje (lo sube ella) y la transferencia de Dafne (cuando le pagó).
  */
 export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyConcept[]; preview: boolean; onChange: () => void }) {
-  const fees = concepts.filter(c => c.kind === 'fee'), ubers = concepts.filter(c => c.kind === 'expense');
-  const owedFees = sum(fees, owedOf), owedUbers = sum(ubers, owedOf), owed = owedFees + owedUbers;
+  const s = cmSummary(concepts, dayKey(new Date()));
   const months = [...new Set(concepts.map(c => c.starts_at.slice(0, 7)))].sort().reverse();
-  const year = new Date().getFullYear().toString();
   // Se ve un mes por vez. Arranca en el actual; si no trabajó este mes, en el último que trabajó.
   const thisMonth = dayKey(new Date()).slice(0, 7);
   const [month, setMonth] = useState(() => months.includes(thisMonth) || !months.length ? thisMonth : months[0]);
-  const yearFees = sum(fees.filter(c => c.starts_at.startsWith(year)), c => c.amount_cents);
 
   return <section className="space-y-6" aria-label="Mis pagos">
-    <div className="ledger-card card"><div className="ledger-head"><div className="w-full"><h2 className="section-title">{owed > 0 ? 'Te falta cobrar' : 'Estás al día'}</h2>
-      {owed > 0 && <dl className="owed-split"><div><dt>Coberturas</dt><dd>{ars(owedFees)}</dd></div><div><dt>Ubers</dt><dd>{ars(owedUbers)}</dd></div><div className="owed-total"><dt>Total</dt><dd>{ars(owed)}</dd></div></dl>}
-      <p className="muted mt-3 text-sm">En {year} llevás {ars(yearFees)} en coberturas. Los Ubers no suman a tu ganancia: son viáticos que cubre la empresa.</p>
-    </div></div></div>
+    <div className="card pay-summary">
+      <p className="pay-summary-kicker">{s.year} hasta hoy</p>
+      <div className="pay-summary-grid">
+        <div><p className="pay-summary-label">Ganaste</p><p className="pay-summary-value">{ars(s.earned)}</p><p className="muted text-sm">{s.parties === 1 ? 'en 1 fiesta' : `en ${s.parties} fiestas`}</p></div>
+        <div><p className="pay-summary-label">{s.owed > 0 ? 'Te falta cobrar' : 'Estás al día'}</p><p className={`pay-summary-value ${s.owed > 0 ? 'is-owed' : ''}`}>{ars(s.owed)}</p>{s.owed > 0 && <p className="muted text-sm">Coberturas {ars(s.owedFees)} · Ubers {ars(s.owedUbers)}</p>}</div>
+      </div>
+      {s.earned > 0 && <div className="grid gap-1"><Meter done={s.collected} total={s.earned} label={`Ya cobraste ${ars(s.collected)} de ${ars(s.earned)}`}/><p className="muted text-sm">Ya cobraste {ars(s.collected)} de {ars(s.earned)}</p></div>}
+      {s.upcoming > 0 && <p className="text-sm">Más adelante: <strong>{ars(s.upcoming)}</strong> de fiestas que vienen.</p>}
+      <p className="muted text-xs">Los Ubers no suman a tu ganancia: son viáticos que cubre la empresa.</p>
+    </div>
 
     <div className="pay-month-nav" role="group" aria-label="Mes">
       <button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setMonth(shiftMonth(month, -1))}><ChevronLeft size={20}/></button>
@@ -85,7 +89,7 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
       const earned = sum(items.filter(c => c.kind === 'fee'), c => c.amount_cents);
       return <section key={m} className="pay-month" aria-label={monthTitle(m)}>
         <div className="pay-month-head">
-          <p className="muted text-sm">{parties.length === 1 ? '1 fiesta' : `${parties.length} fiestas`} · ganaste {ars(earned)}</p>
+          <p className="muted text-sm">{parties.length === 1 ? '1 fiesta' : `${parties.length} fiestas`} · coberturas {ars(earned)}</p>
           <Meter done={paid} total={total} label={`Cobraste ${ars(paid)} de ${ars(total)}`}/>
           <p className="muted text-sm">Cobraste {ars(paid)} de {ars(total)}{total > paid ? ` · te falta ${ars(total - paid)}` : ''}</p>
         </div>
