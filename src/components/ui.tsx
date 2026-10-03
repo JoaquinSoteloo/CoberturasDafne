@@ -1,7 +1,7 @@
 'use client';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { stageOf, stageSummary, type Stage } from '@/lib/content';
-import { formatAmount, parseAmount } from '@/lib/money';
+import { formatAmount, formatTyping, parseAmount } from '@/lib/money';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 export function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}){
@@ -18,14 +18,19 @@ export function MoneyField({label,value,onChange,hint,placeholder}:{label:string
   const id=useId();
   const [text,setText]=useState(()=>value?formatAmount(value):'');
   const [prev,setPrev]=useState(value);
+  // Mientras se escribe, una coma al final todavía no es un error.
+  const read=(t:string)=>parseAmount(t.replace(/,$/,''));
   // Si el valor cambia desde afuera (por ejemplo, al elegir otra CM), se muestra el nuevo.
-  if(value!==prev){setPrev(value);if(parseAmount(text)!==value)setText(value?formatAmount(value):'')}
-  const invalid=parseAmount(text)===null;
+  if(value!==prev){setPrev(value);if(read(text)!==value)setText(value?formatAmount(value):'')}
+  const invalid=read(text)===null;
+  // Al reformatear con los puntos de miles, el cursor vuelve a donde estaba.
+  const input=useRef<HTMLInputElement>(null);const caret=useRef<number|null>(null);
+  useLayoutEffect(()=>{if(caret.current!==null&&input.current===document.activeElement)input.current?.setSelectionRange(caret.current,caret.current);caret.current=null});
   return <label className="block"><span className="label">{label}</span>
-    <span className="money-field"><span aria-hidden="true">$</span><input className="field" type="text" inputMode="decimal" autoComplete="off" placeholder={placeholder??'0'} value={text}
+    <span className="money-field"><span aria-hidden="true">$</span><input ref={input} className="field" type="text" inputMode="decimal" autoComplete="off" placeholder={placeholder??'0'} value={text}
       aria-invalid={invalid} aria-describedby={invalid||hint?id:undefined}
-      onChange={e=>{const raw=e.target.value.replace(/[^\d.,]/g,'');setText(raw);const cents=parseAmount(raw)??-1;setPrev(cents);onChange(cents)}}
-      onBlur={()=>{const cents=parseAmount(text);if(cents!==null)setText(cents?formatAmount(cents):'')}}/></span>
+      onChange={e=>{const next=formatTyping(e.target.value,e.target.selectionStart??e.target.value.length,text);caret.current=next.caret;setText(next.text);const cents=read(next.text)??-1;setPrev(cents);onChange(cents)}}
+      onBlur={()=>{const cents=read(text);if(cents!==null)setText(cents?formatAmount(cents):'')}}/></span>
     {invalid?<span id={id} role="alert" className="field-error block">Revisá el monto: usá números, con coma para los centavos.</span>:hint&&<span id={id} className="muted mt-2 block text-sm">{hint}</span>}
   </label>;
 }
