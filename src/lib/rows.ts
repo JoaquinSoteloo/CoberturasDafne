@@ -35,7 +35,7 @@ const conceptId = (a: Pick<Allocation, 'assignment_id' | 'expense_id'>) => a.ass
 export function toRows(db: Db): Rows {
   return {
     salons: db.salons.map(s => ({ id: s.id, name: s.name, address: s.address, lat: s.lat ?? null, lng: s.lng ?? null })),
-    cms: db.cms.map(c => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, usual_fee_cents: c.usualFeeCents, notes: c.notes })),
+    cms: db.cms.map(c => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, usual_fee_cents: c.usualFeeCents, notes: c.notes, alias: c.alias ?? '' })),
     coverages: db.coverages.map(c => ({
       id: c.id, name: c.name, party_type: c.partyType, client: c.client, salon_id: c.salonId, address: c.address,
       starts_at: c.startsAt, ends_at: c.endsAt || null, arrive_at: c.arriveAt || null, live_posting: c.livePosting, notes: c.notes, agreed_cents: c.agreedCents, drive_url: c.driveUrl,
@@ -79,7 +79,7 @@ export function fromRows(rows: Rows): Db {
   return {
     version: 1,
     salons: rows.salons.map(s => ({ id: s.id, name: str(s.name), address: str(s.address), ...(s.lat != null && s.lng != null ? { lat: Number(s.lat), lng: Number(s.lng) } : {}) })),
-    cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes) })),
+    cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes), ...(c.alias ? { alias: str(c.alias) } : {}) })),
     coverages: rows.coverages.map(c => ({
       id: c.id, name: str(c.name), partyType: str(c.party_type), client: str(c.client), salonId: str(c.salon_id), address: str(c.address),
       startsAt: minutes(c.starts_at), endsAt: minutes(c.ends_at), arriveAt: minutes(c.arrive_at), livePosting: Boolean(c.live_posting), notes: str(c.notes), agreedCents: Number(c.agreed_cents),

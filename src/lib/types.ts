@@ -2,7 +2,7 @@ export type Confirmation = 'pendiente' | 'confirmada' | 'rechazada';
 export type EventStatus = 'pendiente' | 'realizado' | 'cancelado';
 export type DeliveryStatus = 'pendiente' | 'entregada';
 
-export type Cm = { id: string; name: string; phone: string; email: string; usualFeeCents: number; notes: string };
+export type Cm = { id: string; name: string; phone: string; email: string; usualFeeCents: number; notes: string; /** Alias o CBU/CVU para transferirle. */ alias?: string };
 export type Salon = { id: string; name: string; address: string; /** Ubicación exacta, para pedir Uber. */ lat?: number; lng?: number };
 export type Assignment = { id: string; cmId: string; feeCents: number; confirmation: Confirmation };
 export type Expense = {
