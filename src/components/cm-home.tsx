@@ -163,7 +163,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     {!preview && <><InstallHint/><PushPrompt forCm/></>}
     <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
 
-    <LiveNow items={home.dates.filter(d => d.event_status !== 'cancelado' && d.confirmation !== 'rechazada').map(d => ({ id: d.id, name: d.name, salon: d.salon, startsAt: d.starts_at, endsAt: d.ends_at, arriveAt: d.arrive_at }))} onOpen={openDate}/>
+    <LiveNow items={home.dates.filter(d => d.event_status !== 'cancelado' && d.confirmation !== 'rechazada').map(d => ({ id: d.id, name: d.name, salon: d.salon, startsAt: d.starts_at, endsAt: d.ends_at, arriveAt: d.arrive_at, livePosting: d.live_posting }))} onOpen={openDate}/>
 
     {toAnswer.length > 0 && <section className="cm-to-answer" aria-labelledby="to-answer-title">
       <h2 id="to-answer-title" className="font-bold">{toAnswer.length === 1 ? 'Tenés una fecha para confirmar' : `Tenés ${toAnswer.length} fechas para confirmar`}</h2>

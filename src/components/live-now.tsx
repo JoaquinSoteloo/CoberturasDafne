@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { liveEvents, type LiveEvent } from '@/lib/live';
 
-export type LiveItem = LiveEvent & { name: string; salon?: string };
+export type LiveItem = LiveEvent & { name: string; salon?: string; livePosting?: boolean | null };
 
 /** La hora actual, actualizada cada minuto, para que la tarjeta aparezca y se vaya sola. */
 export function useNow() {
@@ -29,7 +29,7 @@ export function LiveNow({ items, href, onOpen }: { items: LiveItem[]; href?: (id
     const detail = [e.salon, e.live === 'soon' ? (e.arriveAt && e.arriveAt < e.startsAt ? `llegada ${hhmm(e.arriveAt)}` : `empieza ${hhmm(e.startsAt)}`) : e.endsAt ? `hasta las ${hhmm(e.endsAt)}` : `empezó ${hhmm(e.startsAt)}`].filter(Boolean).join(' · ');
     const body = <>
       <span className={`live-pill live-pill-${e.live}`}>{e.live === 'now' ? <><span className="live-dot" aria-hidden="true"/> Ahora</> : 'Hoy'}</span>
-      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{e.name}</span><span className="block truncate text-sm opacity-80">{detail}</span></span>
+      <span className="min-w-0 flex-1"><span className="flex min-w-0 items-center gap-2"><span className="truncate font-bold">{e.name}</span>{e.livePosting && <span className="live-badge shrink-0">En vivo</span>}</span><span className="block truncate text-sm opacity-80">{detail}</span></span>
       <ChevronRight size={20} className="shrink-0"/>
     </>;
     return href ? <Link key={e.id} href={href(e.id)} className="live-card">{body}</Link>

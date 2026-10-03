@@ -159,6 +159,7 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .cm-uber-ai svg{flex-shrink:0;margin-top:2px;color:var(--accent)}
 .cm-uber-form{padding:14px;border-radius:14px;border:1.5px dashed var(--line)}
 .live-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;background:var(--rosa);color:#fff;font-size:12px;font-weight:800;letter-spacing:.02em}
+.live-card .live-badge{background:transparent;border:1.5px solid var(--rosa);color:#ffc2d6;padding:2px 8px}
 .live-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--danger-soft);font-size:14px;line-height:1.4}
 .live-note svg{flex-shrink:0;margin-top:1px;color:var(--rosa)}
 .live-toggle{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);cursor:pointer}

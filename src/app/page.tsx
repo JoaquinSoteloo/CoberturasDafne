@@ -15,7 +15,7 @@ import { byPartyType, collectionPending, monthly, totalPendingCollections, total
 const daysAgo=(startsAt:string)=>{const n=Math.round((Date.now()-new Date(`${startsAt.slice(0,10)}T12:00`).getTime())/86400000);return n<=1?'fue ayer':`fue hace ${n} días`;};
 export default function Home() {
   const {db,ready}=useStore(); const [open,setOpen]=useState(false); const router=useRouter();
-  const liveItems=db.coverages.filter(c=>c.eventStatus!=='cancelado').map(c=>({id:c.id,name:c.name,startsAt:c.startsAt,endsAt:c.endsAt,arriveAt:c.arriveAt,salon:db.salons.find(s=>s.id===c.salonId)?.name}));
+  const liveItems=db.coverages.filter(c=>c.eventStatus!=='cancelado').map(c=>({id:c.id,name:c.name,startsAt:c.startsAt,endsAt:c.endsAt,arriveAt:c.arriveAt,livePosting:c.livePosting,salon:db.salons.find(s=>s.id===c.salonId)?.name}));
   // Atajo del ícono ("Fiesta de ahora"): abre directo la que está pasando o por empezar.
   useEffect(()=>{if(!ready||!cameFromShortcut())return;const first=liveEvents(liveItems)[0];if(first)router.replace(`/coberturas/${first.id}`);else window.history.replaceState(null,'','/');},[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const now=new Date(); const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
