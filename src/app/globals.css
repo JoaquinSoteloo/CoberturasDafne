@@ -154,6 +154,8 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .profit-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin:22px 0 0;padding-top:18px;border-top:1px solid #ffffff26}
 .profit-breakdown dt{font-size:13px;color:#bdb5d6}
 .profit-breakdown dd{margin:3px 0 0;font-size:17px;font-weight:700}
+.drive-link{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--accent);color:#fff;text-decoration:none}
+.drive-link:focus-visible{outline:3px solid var(--flash);outline-offset:3px}
 .live-now{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
 .live-card{display:flex;align-items:center;gap:12px;width:100%;min-width:0;text-align:left;padding:14px 16px;border-radius:18px;background:var(--night);color:#fff;box-shadow:0 10px 24px -14px rgba(34,24,61,.6)}
 .live-card:focus-visible{outline:3px solid var(--flash);outline-offset:3px}
