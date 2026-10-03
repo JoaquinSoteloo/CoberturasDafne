@@ -1,8 +1,6 @@
 'use client';
 import { use, useState } from 'react';
 import { toast } from 'sonner';
-import { newId } from '@/lib/repository';
-import { dayKey } from '@/lib/calendar';
 import Link from 'next/link';
 import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell } from 'lucide-react';
 import { CoverageForm } from '@/components/coverage-form';
@@ -10,6 +8,7 @@ import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
 import { StageButton } from '@/components/stage-button';
+import { PayUber } from '@/components/pay-uber';
 import { stageOf, stageSummary, type Stage } from '@/lib/content';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { tripSummary } from '@/lib/trip';
@@ -25,11 +24,6 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const c=db.coverages.find(x=>x.id===id);
   if(!ready) return <p className="muted">Cargando cobertura…</p>;
   if(!c) return <div><Link href="/coberturas" className="text-link">Volver a coberturas</Link><h1 className="page-title mt-5">Cobertura no encontrada</h1></div>;
-  const markUberPaid=(expenseId:string)=>{update(db=>{
-    const row=db.coverages.find(x=>x.id===id);const expense=row?.expenses.find(x=>x.id===expenseId);if(!expense||expenseIsPaid(db,expense))return db;
-    const remainder=Math.max(0,expense.amountCents-conceptPaid(db,`expense:${expenseId}`));
-    return {...db,coverages:db.coverages.map(x=>x.id===id?{...x,expenses:x.expenses.map(e=>e.id===expenseId?{...e,paymentStatus:'pagado' as const}:e)}:x),cmPayments:expense.advancedBy==='cm'&&expense.advancedCmId&&remainder>0?[...db.cmPayments,{id:newId(),cmId:expense.advancedCmId,date:dayKey(new Date()),allocations:[{conceptId:`expense:${expenseId}`,amountCents:remainder}],notes:'Pago de Uber registrado en la cobertura'}]:db.cmPayments};
-  });toast.success('Uber marcado como pagado')};
   // Un gasto sin pagos se borra al toque, con unos segundos para deshacerlo.
   const removeExpense=(expenseId:string)=>{
     const index=c.expenses.findIndex(x=>x.id===expenseId);const expense=c.expenses[index];if(!expense)return;
@@ -86,7 +80,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             <div className="mb-3"><UberFromReceipt coverage={c}/></div>
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
               <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span>{tripSummary(e)&&<span className="block text-sm">{tripSummary(e)}</span>}<span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
-              <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}{conceptPaid(db,`expense:${e.id}`)===0&&<button type="button" className="btn btn-quiet btn-small !px-2" aria-label={`Borrar ${e.label}`} onClick={()=>removeExpense(e.id)}><Trash2 size={16}/></button>}</span>
+              <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&paid&&<span className="badge badge-success">Pagado</span>}{e.kind==='uber'&&<PayUber coverageId={id} expenseId={e.id}/>}{conceptPaid(db,`expense:${e.id}`)===0&&<button type="button" className="btn btn-quiet btn-small !px-2" aria-label={`Borrar ${e.label}`} onClick={()=>removeExpense(e.id)}><Trash2 size={16}/></button>}</span>
               <span className="receipt-row"><ReceiptControl expenseId={e.id} path={e.receiptPath} disabledReason={saveState==='saved'?undefined:'Se puede adjuntar cuando terminen de guardarse los cambios.'} onChange={path=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.map(x=>x.id===e.id?{...x,receiptPath:path??undefined}:x)}:row)}))}/></span>
             </li>})}</ul>}
           </div>
