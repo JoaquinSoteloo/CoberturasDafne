@@ -241,6 +241,12 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 6px;max-width:320px}
 .meter span{display:block;height:100%;border-radius:6px;background:var(--ok)}
 .ledger-card{overflow:hidden}
+.cm-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%}
+.cm-tabs button{justify-content:center;white-space:nowrap}
+.avatar{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:999px;overflow:hidden;background:var(--rosa);color:#fff;font-weight:800;letter-spacing:.02em}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.profile-card{padding:22px 20px;display:grid;justify-items:center;gap:12px}
+.profile-photo-btn{position:absolute;right:-2px;bottom:-2px;width:34px;height:34px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;border:3px solid var(--surface)}
 .pay-summary{padding:18px 20px;display:grid;gap:14px}
 .pay-summary-kicker{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .pay-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}

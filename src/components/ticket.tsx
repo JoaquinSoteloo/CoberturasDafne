@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Clock, MapPin } from 'lucide-react';
 import { StoryBars, untilLabel } from './ui';
+import { Avatar } from './avatar';
 import type { Coverage, Db } from '@/lib/types';
 
 const initials=(name='')=>name.split(' ').map(n=>n[0]).slice(0,2).join('');
@@ -17,7 +18,7 @@ export function Ticket({coverage:c,db,href,children}:{coverage:Coverage;db:Db;hr
       <p className="ticket-place"><MapPin size={15}/>{[c.partyType,salon].filter(Boolean).join(', en ')}</p>
       {c.arriveAt&&<p className="ticket-arrive"><Clock size={15}/>Las CM llegan {c.arriveAt.slice(11,16)}</p>}
       {children}
-      <ul className="ticket-crew" aria-label="Equipo">{c.dafneGoes&&<li className="crew-chip crew-confirmada"><span className="crew-initials" aria-hidden="true">V</span>Vos</li>}{c.assignments.length?c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className={`crew-chip crew-${a.confirmation}`}><span className="crew-initials" aria-hidden="true">{initials(cm?.name)}</span>{cm?.name.split(' ')[0]}<span className="crew-state">{a.confirmation==='confirmada'?'confirmada':a.confirmation==='rechazada'?'no puede':'sin confirmar'}</span></li>}):!c.dafneGoes&&<li className="crew-chip crew-pendiente">Sin CM asignada</li>}</ul>
+      <ul className="ticket-crew" aria-label="Equipo">{c.dafneGoes&&<li className="crew-chip crew-confirmada"><span className="crew-initials" aria-hidden="true">V</span>Vos</li>}{c.assignments.length?c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className={`crew-chip crew-${a.confirmation}`}>{cm?.photoPath?<Avatar name={cm.name} photoPath={cm.photoPath} size={28}/>:<span className="crew-initials" aria-hidden="true">{initials(cm?.name)}</span>}{cm?.name.split(' ')[0]}<span className="crew-state">{a.confirmation==='confirmada'?'confirmada':a.confirmation==='rechazada'?'no puede':'sin confirmar'}</span></li>}):!c.dafneGoes&&<li className="crew-chip crew-pendiente">Sin CM asignada</li>}</ul>
       <StoryBars items={c.checklist}/>
     </div>
     <div className="ticket-stub" aria-label={`De ${c.startsAt.slice(11,16)}${c.endsAt?` a ${c.endsAt.slice(11,16)}`:''}`}><time>{c.startsAt.slice(11,16)}</time>{c.endsAt&&<><span className="stub-line" aria-hidden="true"/><time>{c.endsAt.slice(11,16)}</time></>}</div>

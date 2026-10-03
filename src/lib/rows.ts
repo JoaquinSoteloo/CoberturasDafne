@@ -79,7 +79,7 @@ export function fromRows(rows: Rows): Db {
   return {
     version: 1,
     salons: rows.salons.map(s => ({ id: s.id, name: str(s.name), address: str(s.address), ...(s.lat != null && s.lng != null ? { lat: Number(s.lat), lng: Number(s.lng) } : {}) })),
-    cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes), ...(c.alias ? { alias: str(c.alias) } : {}) })),
+    cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes), ...(c.alias ? { alias: str(c.alias) } : {}), ...(c.photo_path ? { photoPath: str(c.photo_path) } : {}) })),
     coverages: rows.coverages.map(c => ({
       id: c.id, name: str(c.name), partyType: str(c.party_type), client: str(c.client), salonId: str(c.salon_id), address: str(c.address),
       startsAt: minutes(c.starts_at), endsAt: minutes(c.ends_at), arriveAt: minutes(c.arrive_at), livePosting: Boolean(c.live_posting), dafneGoes: Boolean(c.dafne_goes), notes: str(c.notes), agreedCents: Number(c.agreed_cents),

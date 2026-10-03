@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
+import { CalendarDays, Clock, FolderUp, Radio, UserRound, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
@@ -11,6 +11,7 @@ import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
 import { CmUbers } from './cm-ubers';
 import { CmPayments, type MoneyConcept } from './cm-payments';
+import { CmProfile, type Profile } from './cm-profile';
 import { StageButton } from './stage-button';
 import { STAGE_LABEL, stageOf, type Stage } from '@/lib/content';
 import { MapPreview } from './map-preview';
@@ -33,7 +34,7 @@ type CmDate = {
 };
 type Concept = MoneyConcept;
 type Payment = { id: string; date: string; amount_cents: number; receipt_path?: string | null };
-type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
+type Home = { name: string; profile?: Profile; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
 
 const time = (iso: string | null) => iso ? iso.slice(11, 16) : '';
 const longDay = (iso: string) => cap(new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso.slice(0, 10) + 'T12:00')));
@@ -62,7 +63,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const Main = preview ? 'div' : 'main';
   const [home, setHome] = useState<Home | null>(null);
   const [failed, setFailed] = useState(false);
-  const [tab, setTab] = useState<'fechas' | 'pagos'>('fechas');
+  const [tab, setTab] = useState<'fechas' | 'pagos' | 'perfil'>('fechas');
   const [busy, setBusy] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [month, setMonth] = useState<string | null>(null);
@@ -168,7 +169,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
       <ul className="cm-rows">{toAnswer.map(d => <li key={d.id}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
     </section>}
 
-    <div className="coverage-view-switch" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Mis fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Mis pagos</button></div>
+    <div className="coverage-view-switch cm-tabs" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Pagos</button><button role="tab" aria-selected={tab === 'perfil'} className={tab === 'perfil' ? 'selected' : ''} onClick={() => setTab('perfil')}><UserRound size={17}/> Perfil</button></div>
 
     {tab === 'fechas' ? <section className="space-y-4" aria-label="Mis fechas">
       <div className="cm-cal card">
@@ -192,7 +193,9 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
       {monthDates.length
         ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
         : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
-    </section> : <CmPayments concepts={home.concepts} preview={preview} onChange={() => void load()}/>}
+    </section> : tab === 'pagos' ? <CmPayments concepts={home.concepts} preview={preview} onChange={() => void load()}/>
+      : <CmProfile key={`${home.profile?.phone}|${home.profile?.alias}|${home.profile?.photo_path}`} profile={home.profile ?? { name: home.name, email: '', phone: '', alias: '', photo_path: null }} preview={preview} onChange={() => void load()}>
+              </CmProfile>}
 
     {!preview && <><CalendarSubscribe who="cm"/><ChangePassword/></>}
   </Main></>;
