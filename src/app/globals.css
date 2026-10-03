@@ -164,6 +164,7 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .live-note svg{flex-shrink:0;margin-top:1px;color:var(--rosa)}
 .live-toggle{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);cursor:pointer}
 .live-toggle input{width:20px;height:20px;margin-top:2px;accent-color:var(--rosa);flex-shrink:0}
+.scan-transfer{padding:12px;border-radius:14px;border:1.5px dashed var(--line);background:var(--sunken)}
 .mp-transfer{display:grid;gap:10px;padding:12px 14px;border-radius:14px;background:#e9f6fd;border:1.5px solid #bfe3f7}
 :root[data-theme="dark"] .mp-transfer{background:#10293a;border-color:#1d4d6b}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mp-transfer{background:#10293a;border-color:#1d4d6b}}
