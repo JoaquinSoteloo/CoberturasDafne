@@ -29,7 +29,9 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
   const salon = db.salons.find(s => s.id === coverage.salonId);
   const guess = read ? guessDirection(read, coverage, coverage.address || salon?.address) : null;
   const warning = read ? dateWarning(read, coverage.startsAt) : null;
-  const cms = coverage.assignments.map(a => db.cms.find(cm => cm.id === a.cmId)).filter(Boolean) as { id: string; name: string }[];
+  const cms = coverage.assignments.filter(a => a.confirmation !== 'rechazada').map(a => db.cms.find(cm => cm.id === a.cmId)).filter(Boolean) as { id: string; name: string }[];
+  // Los Ubers los suelen pagar las CM y Dafne se los devuelve: si va una sola, queda a su nombre.
+  const defaultPayer = cms.length === 1 ? cms[0].id : 'coordinadora';
 
   const pick = async (picked?: File) => {
     if (!picked) return;
@@ -46,7 +48,7 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
       setFile({ blob: small, name: picked.name });
       setPreview(small.type.startsWith('image/') ? URL.createObjectURL(small) : '');
       setRead(result);
-      setDraft({ direction, amountCents: result.totalCents ?? 0, payer: 'coordinadora', absorbedBy: 'coordinadora',
+      setDraft({ direction, amountCents: result.totalCents ?? 0, payer: defaultPayer, absorbedBy: 'coordinadora',
         from: result.origin ?? '', to: result.destination ?? '', start: result.pickupTime ?? '', end: result.dropoffTime ?? '' });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo leer el comprobante.');
