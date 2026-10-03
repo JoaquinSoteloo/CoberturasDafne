@@ -58,3 +58,17 @@ test('resume el viaje para mostrarlo', async () => {
   assert.equal(tripSummary({ tripTo: 'Libertador 1240' }), '? → Libertador 1240');
   assert.equal(tripSummary({}), '');
 });
+
+test('el recibo encuentra su fiesta por fecha y dirección', async () => {
+  const { matchTripCoverage } = await import('../src/lib/trip.ts');
+  const list = [
+    { id: 'luci', startsAt: '2026-10-02T21:00', endsAt: '2026-10-03T05:00', address: 'Av. Libertador 1240, Tigre' },
+    { id: 'ale', startsAt: '2026-10-01T18:30', endsAt: null, address: 'Belgrano 500, San Isidro' },
+    { id: 'otra', startsAt: '2026-10-17T21:00', endsAt: null, address: 'Av. Libertador 1240, Tigre' },
+  ];
+  const r = (x) => ({ isTripReceipt: true, totalCents: 1000000, date: null, pickupTime: null, dropoffTime: null, origin: null, destination: null, ...x });
+  assert.equal(matchTripCoverage(list, r({ date: '2026-10-02', pickupTime: '20:05', destination: 'Av. del Libertador 1240' }))?.id, 'luci');  // ida
+  assert.equal(matchTripCoverage(list, r({ date: '2026-10-03', pickupTime: '05:20' }))?.id, 'luci');                                        // vuelta de madrugada
+  assert.equal(matchTripCoverage(list, r({ date: '2026-10-01', pickupTime: '17:40' }))?.id, 'ale');
+  assert.equal(matchTripCoverage(list, r({ date: '2026-09-10', pickupTime: '20:00' })), null);                                               // ninguna cerca
+});

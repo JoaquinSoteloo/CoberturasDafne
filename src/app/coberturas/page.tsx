@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, List } from 'lucide-react';
 import { QuickCoverageForm } from '@/components/quick-coverage-form';
+import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { useStore } from '@/components/store';
 import { Empty, Modal, StoryBars } from '@/components/ui';
 import { ars } from '@/lib/money';
@@ -23,7 +24,7 @@ export default function Coverages() {
   const moveMonth=(delta:number)=>{const next=shiftMonth(month,delta);setMonth(next);setSelected(next+'-01')};
   const visibleRows=view==='lista'?rows.filter(c=>from||to||c.startsAt.slice(0,10)>=today):selectedRows;
   return <div className="space-y-6">
-    <div className="page-heading"><div><h1 className="page-title">Coberturas</h1><p className="muted mt-2">Todas las fiestas, por fecha.</p></div><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div>
+    <div className="page-heading"><div><h1 className="page-title">Coberturas</h1><p className="muted mt-2">Todas las fiestas, por fecha.</p></div><div className="flex flex-wrap gap-2"><UberFromReceipt label="Cargar recibo de Uber"/><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div></div>
     <div className="coverage-view-switch" aria-label="Vista de coberturas"><button className={view==='calendario'?'selected':''} aria-pressed={view==='calendario'} onClick={()=>setView('calendario')}><CalendarDays size={17}/> Calendario</button><button className={view==='lista'?'selected':''} aria-pressed={view==='lista'} onClick={()=>setView('lista')}><List size={17}/> Agenda</button></div>
     <details className="card calendar-filters"><summary>Filtrar coberturas{(state!=='todos'||type||from||to)&&<span className="badge">Filtros activos</span>}</summary><div className="grid gap-3 p-4 sm:grid-cols-4"><label><span className="label">Estado</span><select className="field" value={state} onChange={e=>setState(e.target.value)}><option value="todos">Todos</option><option value="pendiente">Pendientes</option><option value="realizado">Realizados</option><option value="cancelado">Cancelados</option></select></label><label><span className="label">Tipo de fiesta</span><select className="field" value={type} onChange={e=>setType(e.target.value)}><option value="">Todos</option>{PARTY_TYPES.map(t=><option key={t} value={t}>{t}</option>)}<option value="sin">Sin tipo</option></select></label><label><span className="label">Desde</span><input className="field" type="date" value={from} onChange={e=>{setFrom(e.target.value);if(e.target.value)selectDay(e.target.value)}}/></label><label><span className="label">Hasta</span><input className="field" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div></details>
     {from&&to&&from>to&&<p role="alert" className="badge badge-warn">La fecha Desde debe ser anterior a Hasta.</p>}

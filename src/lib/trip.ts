@@ -74,3 +74,22 @@ export function tripSummary(t: { tripFrom?: string | null; tripTo?: string | nul
   const hours = from && to ? `de ${from} a ${to}` : from ? `salió ${from}` : to ? `llegó ${to}` : '';
   return [route, hours].filter(Boolean).join(', ');
 }
+
+/**
+ * ¿De qué fiesta es un recibo de Uber? Las que tienen el viaje cerca (desde 12 horas antes del
+ * comienzo hasta 12 horas después del final). Gana la que pasa por la dirección del salón; si no,
+ * la más cercana en horario. Sin fecha en el recibo, solo por la dirección.
+ */
+export function matchTripCoverage<T extends { id: string; startsAt: string; endsAt?: string | null; address?: string }>(list: T[], r: ReceiptData): T | null {
+  const time = r.pickupTime ?? r.dropoffTime ?? '12:00';
+  const placeHit = (c: T) => samePlace(r.destination, c.address) || samePlace(r.origin, c.address);
+  if (!r.date) { const hits = list.filter(placeHit); return hits.length === 1 ? hits[0] : null; }
+  const trip = new Date(`${r.date}T${time}`).getTime();
+  const near = list.map(c => {
+    const start = new Date(c.startsAt).getTime();
+    const end = c.endsAt ? new Date(c.endsAt).getTime() : start + 5 * HOUR;
+    return { c, inWindow: trip >= start - 12 * HOUR && trip <= end + 12 * HOUR, gap: Math.min(Math.abs(trip - start), Math.abs(trip - end)) };
+  }).filter(x => x.inWindow);
+  near.sort((a, b) => (placeHit(b.c) ? 1 : 0) - (placeHit(a.c) ? 1 : 0) || a.gap - b.gap);
+  return near[0]?.c ?? null;
+}
