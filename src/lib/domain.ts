@@ -9,6 +9,8 @@ export const expectedIncome = (c: Coverage) => active(c) ? c.agreedCents + addit
 export const expectedCosts = (c: Coverage) => active(c) ? feeTotal(c) + expenseTotal(c) : 0;
 export const estimatedProfit = (c: Coverage) => expectedIncome(c) - expectedCosts(c);
 export const collected = (db: Db, coverageId: string) => db.collections.filter(p => p.coverageId === coverageId).reduce((sum, p) => sum + p.amountCents, 0);
+/** El último honorario que se le puso a la CM (para precargarlo al asignarla); 0 si nunca fue. */
+export const lastFee = (db: Db, cmId: string) => db.coverages.filter(c => c.assignments.some(a => a.cmId === cmId && a.feeCents > 0)).sort((a, b) => b.startsAt.localeCompare(a.startsAt))[0]?.assignments.find(a => a.cmId === cmId && a.feeCents > 0)?.feeCents ?? 0;
 export const collectionPending = (db: Db, c: Coverage) => Math.max(0, expectedIncome(c) - collected(db, c.id));
 export const paymentTotal = (payment: CmPayment) => payment.allocations.reduce((sum, a) => sum + a.amountCents, 0);
 export const paidToCm = (db: Db, cmId: string) => db.cmPayments.filter(p => p.cmId === cmId).reduce((sum, p) => sum + paymentTotal(p), 0);

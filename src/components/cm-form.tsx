@@ -7,7 +7,7 @@ import type { Cm } from '@/lib/types';
 /** Agregar o editar una CM (nombre, teléfono, email de acceso, alias y notas). El honorario se carga en cada fiesta. */
 export function CmForm({ initial, onDone }: { initial?: Cm; onDone: (cm: Cm) => void }) {
   const { db, update } = useStore();
-  const [edit, setEdit] = useState<Cm>(() => initial ? { ...initial } : { id: newId(), name: '', phone: '', email: '', usualFeeCents: 0, notes: '' });
+  const [edit, setEdit] = useState<Cm>(() => initial ? { ...initial } : { id: newId(), name: '', phone: '', email: '', notes: '' });
   const [error, setError] = useState('');
   const save = (e: React.FormEvent) => {
     e.preventDefault();
