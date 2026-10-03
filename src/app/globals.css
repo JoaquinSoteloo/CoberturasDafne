@@ -154,6 +154,11 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .profit-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin:22px 0 0;padding-top:18px;border-top:1px solid #ffffff26}
 .profit-breakdown dt{font-size:13px;color:#bdb5d6}
 .profit-breakdown dd{margin:3px 0 0;font-size:17px;font-weight:700}
+.party-types{padding:18px 20px}
+.party-types ul{list-style:none;margin:12px 0 0;padding:0;display:grid}
+.party-types li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1.5px dotted var(--line)}
+.party-types li:last-child{border-bottom:0}
+.party-types strong{font-variant-numeric:tabular-nums;white-space:nowrap}
 .balance-stack{display:grid;gap:10px;align-content:start}
 .balance-card{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-radius:16px;padding:18px 20px;background:var(--surface);border:1.5px solid var(--line);font-weight:600}
 .balance-card:hover{border-color:var(--ink)}

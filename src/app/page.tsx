@@ -8,7 +8,7 @@ import { Empty, Modal, untilLabel } from '@/components/ui';
 import { Ticket } from '@/components/ticket';
 import { CalendarSubscribe } from '@/components/calendar-subscribe';
 import { ars } from '@/lib/money';
-import { collectionPending, monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
+import { byPartyType, collectionPending, monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
 const daysAgo=(startsAt:string)=>{const n=Math.round((Date.now()-new Date(`${startsAt.slice(0,10)}T12:00`).getTime())/86400000);return n<=1?'fue ayer':`fue hace ${n} días`;};
 export default function Home() {
   const {db,ready}=useStore(); const [open,setOpen]=useState(false);
@@ -38,6 +38,7 @@ export default function Home() {
       <div className="month-profit"><h2 id="month-title" className="section-title">Ganancia estimada de <span>{monthName}</span></h2><p className="profit-value">{ready?ars(summary.profit):'—'}</p><dl className="profit-breakdown"><div><dt>Ingresos acordados</dt><dd>{ars(summary.income)}</dd></div><div><dt>Costos previstos</dt><dd>{ars(summary.costs)}</dd></div><div><dt>Cobrado</dt><dd>{ars(summary.collected)}</dd></div><div><dt>Pagado</dt><dd>{ars(summary.paid)}</dd></div></dl></div>
       <div className="balance-stack"><Link href="/pagos?tab=cobros" className="balance-card balance-in"><ArrowDownLeft size={20}/><span className="flex-1">Por cobrar al salón</span><strong>{ready?ars(totalPendingCollections(db)):'—'}</strong></Link><Link href="/pagos?tab=pagos" className="balance-card balance-out"><ArrowUpRight size={20}/><span className="flex-1">Por pagar a las CM</span><strong>{ready?ars(totalPendingPayments(db)):'—'}</strong></Link></div>
     </section>
+    {(()=>{const year=today.slice(0,4);const types=byPartyType(db,year);return ready&&types.length>0&&<section className="card party-types" aria-labelledby="types-title"><h2 id="types-title" className="section-title">Fiestas de {year} por tipo</h2><ul>{types.map(t=><li key={t.type}><span className="min-w-0 flex-1"><span className="block font-bold">{t.type}</span><span className="muted text-sm">{t.count===1?'1 fiesta':`${t.count} fiestas`} · {ars(Math.round(t.profitCents/t.count))} de ganancia promedio</span></span><strong>{ars(t.profitCents)}</strong></li>)}</ul><p className="muted mt-3 text-xs">Ganancia estimada, sin las canceladas.</p></section>})()}
     <p className="muted max-w-[68ch] text-xs leading-relaxed">El resumen se calcula según la fecha del evento. La ganancia estimada incluye honorarios, gastos y reintegros acordados; no representa dinero disponible.</p>
     <div className="max-w-xl"><CalendarSubscribe who="coordinadora"/></div>
     {open&&<Modal title="Nueva cobertura" onClose={()=>setOpen(false)}><QuickCoverageForm onDone={()=>setOpen(false)}/></Modal>}

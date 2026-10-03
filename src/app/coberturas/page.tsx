@@ -6,17 +6,17 @@ import { QuickCoverageForm } from '@/components/quick-coverage-form';
 import { useStore } from '@/components/store';
 import { Empty, Modal, StoryBars } from '@/components/ui';
 import { ars } from '@/lib/money';
-import { collectionPending } from '@/lib/domain';
+import { PARTY_TYPES, collectionPending, partyTypeOf } from '@/lib/domain';
 import { calendarDays, dayKey, shiftMonth } from '@/lib/calendar';
 
 export default function Coverages() {
   const {db,ready}=useStore(); const today=dayKey(new Date());
   const [open,setOpen]=useState(false); const [state,setState]=useState('todos');
-  const [from,setFrom]=useState(''); const [to,setTo]=useState('');
+  const [type,setType]=useState('');const [from,setFrom]=useState(''); const [to,setTo]=useState('');
   const [month,setMonth]=useState(today.slice(0,7)); const [selected,setSelected]=useState(today);
   const [view,setView]=useState<'calendario'|'lista'>('calendario');
   useEffect(()=>{if(window.matchMedia('(max-width: 767px)').matches)setView('lista')},[]);
-  const rows=db.coverages.filter(c=>(state==='todos'||c.eventStatus===state)&&(!from||c.startsAt.slice(0,10)>=from)&&(!to||c.startsAt.slice(0,10)<=to)).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+  const rows=db.coverages.filter(c=>(state==='todos'||c.eventStatus===state)&&(!type||(type==='sin'?!c.partyType.trim():partyTypeOf(c.partyType)===type))&&(!from||c.startsAt.slice(0,10)>=from)&&(!to||c.startsAt.slice(0,10)<=to)).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
   const days=calendarDays(month); const selectedRows=rows.filter(c=>c.startsAt.slice(0,10)===selected);
   const monthLabel=new Intl.DateTimeFormat('es-AR',{month:'long',year:'numeric'}).format(new Date(month+'-01T12:00'));
   const selectDay=(day:string)=>{setSelected(day);setMonth(day.slice(0,7))};
@@ -25,7 +25,7 @@ export default function Coverages() {
   return <div className="space-y-6">
     <div className="page-heading"><div><h1 className="page-title">Coberturas</h1><p className="muted mt-2">Todas las fiestas, por fecha.</p></div><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div>
     <div className="coverage-view-switch" aria-label="Vista de coberturas"><button className={view==='calendario'?'selected':''} aria-pressed={view==='calendario'} onClick={()=>setView('calendario')}><CalendarDays size={17}/> Calendario</button><button className={view==='lista'?'selected':''} aria-pressed={view==='lista'} onClick={()=>setView('lista')}><List size={17}/> Agenda</button></div>
-    <details className="card calendar-filters"><summary>Filtrar coberturas{(state!=='todos'||from||to)&&<span className="badge">Filtros activos</span>}</summary><div className="grid gap-3 p-4 sm:grid-cols-3"><label><span className="label">Estado</span><select className="field" value={state} onChange={e=>setState(e.target.value)}><option value="todos">Todos</option><option value="pendiente">Pendientes</option><option value="realizado">Realizados</option><option value="cancelado">Cancelados</option></select></label><label><span className="label">Desde</span><input className="field" type="date" value={from} onChange={e=>{setFrom(e.target.value);if(e.target.value)selectDay(e.target.value)}}/></label><label><span className="label">Hasta</span><input className="field" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div></details>
+    <details className="card calendar-filters"><summary>Filtrar coberturas{(state!=='todos'||type||from||to)&&<span className="badge">Filtros activos</span>}</summary><div className="grid gap-3 p-4 sm:grid-cols-4"><label><span className="label">Estado</span><select className="field" value={state} onChange={e=>setState(e.target.value)}><option value="todos">Todos</option><option value="pendiente">Pendientes</option><option value="realizado">Realizados</option><option value="cancelado">Cancelados</option></select></label><label><span className="label">Tipo de fiesta</span><select className="field" value={type} onChange={e=>setType(e.target.value)}><option value="">Todos</option>{PARTY_TYPES.map(t=><option key={t} value={t}>{t}</option>)}<option value="sin">Sin tipo</option></select></label><label><span className="label">Desde</span><input className="field" type="date" value={from} onChange={e=>{setFrom(e.target.value);if(e.target.value)selectDay(e.target.value)}}/></label><label><span className="label">Hasta</span><input className="field" type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div></details>
     {from&&to&&from>to&&<p role="alert" className="badge badge-warn">La fecha Desde debe ser anterior a Hasta.</p>}
     {view==='calendario'&&<section className="card calendar" aria-label="Calendario de coberturas"><div className="calendar-toolbar"><div><h2 className="section-title" aria-live="polite">{monthLabel[0].toUpperCase()+monthLabel.slice(1)}</h2><p className="muted mt-1 text-sm">{rows.filter(c=>c.startsAt.startsWith(month)).length} coberturas</p></div><div className="flex gap-1"><button className="btn btn-secondary !px-3" onClick={()=>selectDay(today)}>Hoy</button><button className="btn btn-quiet !px-3" aria-label="Mes anterior" onClick={()=>moveMonth(-1)}><ChevronLeft size={19}/></button><button className="btn btn-quiet !px-3" aria-label="Mes siguiente" onClick={()=>moveMonth(1)}><ChevronRight size={19}/></button></div></div>
       <div className="calendar-weekdays" aria-hidden="true">{['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=><span key={d}>{d}</span>)}</div>

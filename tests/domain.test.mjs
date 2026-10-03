@@ -92,3 +92,19 @@ test('detecta lo cobrado de más y valida corregir un cobro', async () => {
   assert.match(validateCollectionEdit(db, 'col-1', 0), /anulalo/);
   assert.match(validateCollectionEdit(db, 'no-existe', 100), /No encontramos/);
 });
+
+test('tipos de fiesta: lo escrito a mano se agrupa y se suman los números por tipo', async () => {
+  const { partyTypeOf, byPartyType } = await import('../src/lib/domain.ts');
+  assert.equal(partyTypeOf('XV de Sofi'), '15 años');
+  assert.equal(partyTypeOf('casamiento'), 'Boda');
+  assert.equal(partyTypeOf('boda'), 'Boda');
+  assert.equal(partyTypeOf('Baby shower'), 'Baby shower');
+  assert.equal(partyTypeOf('  '), '');
+  const db = createSeed();
+  const year = db.coverages[0].startsAt.slice(0, 4);
+  db.coverages = db.coverages.map((c, i) => ({ ...c, startsAt: `${year}${c.startsAt.slice(4)}`, partyType: i < 2 ? '15 años' : '', eventStatus: 'pendiente' }));
+  const stats = byPartyType(db, year);
+  assert.equal(stats[0].type, 'Sin tipo');
+  assert.equal(stats.find(s => s.type === '15 años').count, 2);
+  assert.equal(stats.reduce((n, s) => n + s.count, 0), db.coverages.length);
+});

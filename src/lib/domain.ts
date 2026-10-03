@@ -74,3 +74,27 @@ export const cmCoverageHistory = (db: Db, cmId: string) => db.coverages
     const pendingCents = active(coverage) ? [...fees.map(a=>({id:`fee:${a.id}`,amount:a.feeCents})),...expenses.map(e=>({id:`expense:${e.id}`,amount:e.amountCents}))].reduce((sum,item)=>sum+Math.max(0,item.amount-conceptPaid(db,item.id)),0) : 0;
     return {coverage,totalCents,paidCents,pendingCents,hasReimbursements:expenses.length>0};
   });
+
+/** Tipos de fiesta fijos, para elegir de una lista y poder sacar números por tipo. */
+export const PARTY_TYPES = ['15 años', 'Boda', 'Cumpleaños', 'Egresados', 'Bautismo', 'Comunión', 'Corporativo'] as const;
+const PARTY_ALIASES: [RegExp, string][] = [
+  [/\b(15|xv|quince)/i, '15 años'], [/(boda|casamiento|civil)/i, 'Boda'], [/cumple/i, 'Cumpleaños'],
+  [/egres/i, 'Egresados'], [/bautis/i, 'Bautismo'], [/comuni/i, 'Comunión'], [/(corporativ|empresa)/i, 'Corporativo'],
+];
+/** Lleva lo escrito a mano ("XV", "casamiento", "cumple de 18") al tipo de la lista. Si no coincide, queda como está. */
+export const partyTypeOf = (text: string) => {
+  const clean = text.trim();
+  if (!clean) return '';
+  return PARTY_TYPES.find(t => t.toLowerCase() === clean.toLowerCase()) ?? PARTY_ALIASES.find(([re]) => re.test(clean))?.[1] ?? clean;
+};
+/** Cuántas fiestas de cada tipo hubo en el año y cuánto dejaron (sin las canceladas). */
+export function byPartyType(db: Db, year: string) {
+  const groups = new Map<string, { type: string; count: number; incomeCents: number; profitCents: number }>();
+  for (const c of db.coverages.filter(c => active(c) && c.startsAt.startsWith(year))) {
+    const type = partyTypeOf(c.partyType) || 'Sin tipo';
+    const g = groups.get(type) ?? { type, count: 0, incomeCents: 0, profitCents: 0 };
+    g.count += 1; g.incomeCents += expectedIncome(c); g.profitCents += estimatedProfit(c);
+    groups.set(type, g);
+  }
+  return [...groups.values()].sort((a, b) => b.count - a.count || b.profitCents - a.profitCents);
+}

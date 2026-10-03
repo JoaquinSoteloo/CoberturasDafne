@@ -10,7 +10,7 @@ import { useStore } from './store';
 import { MoneyField } from './ui';
 import { newId } from '@/lib/repository';
 import { ars } from '@/lib/money';
-import { collected, conceptPaid, expectedIncome, expenseIsPaid } from '@/lib/domain';
+import { PARTY_TYPES, collected, conceptPaid, expectedIncome, expenseIsPaid, partyTypeOf } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
 import { arriveAtFor, endsAtFor, momentAtFor } from '@/lib/calendar';
@@ -26,6 +26,9 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
   const { db, update, undoable } = useStore(); const router = useRouter();
   const [form, setForm] = useState<Coverage>(() => initial ? {...structuredClone(initial), expenses:initial.expenses.map(x=>({...x,paymentStatus:expenseIsPaid(db,x)?'pagado':'pendiente'}))} : {...blank(db.salons[0]?.id || '', ''),...(defaultDate?{startsAt:defaultDate+'T20:00'}:{})});
   const [error, setError] = useState(''); const [ideas, setIdeas] = useState('');
+  // Lo escrito a mano antes de la lista ("XV", "casamiento") se lleva al tipo que corresponde; si no hay, queda como "Otra".
+  const knownType = (PARTY_TYPES as readonly string[]).includes(partyTypeOf(form.partyType));
+  const [otherType, setOtherType] = useState(() => !!form.partyType.trim() && !knownType);
   const change = <K extends keyof Coverage>(key: K, value: Coverage[K]) => setForm(f => ({ ...f, [key]: value }));
   const save = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +44,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     if (form.deliveryStatus === 'entregada' && !form.driveUrl.trim() && !form.deliveredPieces) { setError('Para marcar la entrega, cargá un link de Drive o la cantidad de piezas.'); return; }
     setError('');
     if (form.expenses.some(x=>x.kind==='uber' && x.paymentStatus==='pendiente' && conceptPaid(db,`expense:${x.id}`)>=x.amountCents)) { setError('Este Uber ya fue liquidado. No se puede marcar como pendiente sin ajustar el pago registrado.'); return; }
-    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim(),notify:true})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
+    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:otherType?form.partyType.trim():partyTypeOf(form.partyType), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim(),notify:true})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
     // Lo que pasó con la primera fiesta: el acordado se bajó después de registrar el cobro.
     if (initial && expectedIncome(cleaned) < collected(db, cleaned.id) && !confirm(`Ya registraste cobros por ${ars(collected(db, cleaned.id))} y lo acordado queda en ${ars(expectedIncome(cleaned))}. Si el cobro fue por el monto viejo, después corregilo desde Pagos. ¿Guardar igual?`)) return;
     const apply = (db: Db) => {
@@ -99,7 +102,8 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
   return <form onSubmit={save} className="space-y-7">
     {(!section||section==='event')&&<section className="grid gap-4 sm:grid-cols-2"><h3 className="section-title sm:col-span-2">Datos del evento</h3>
       <label><span className="label">Nombre del evento *</span><input className="field" value={form.name} onChange={e => change('name',e.target.value)} required/></label>
-      <label><span className="label">Tipo de fiesta · opcional</span><input className="field" value={form.partyType} onChange={e => change('partyType',e.target.value)} placeholder="Ej. boda, 15 años"/></label>
+      <div className="grid gap-2"><label><span className="label">Tipo de fiesta · opcional</span><select className="field" value={otherType ? 'otra' : knownType ? partyTypeOf(form.partyType) : ''} onChange={e => { const v = e.target.value; setOtherType(v === 'otra'); change('partyType', v === 'otra' || !v ? '' : v); }}><option value="">Sin especificar</option>{PARTY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}<option value="otra">Otra…</option></select></label>
+        {otherType && <input className="field" aria-label="Otro tipo de fiesta" value={form.partyType} onChange={e => change('partyType',e.target.value)} placeholder="Ej. baby shower" autoFocus/>}</div>
       <label><span className="label">Cliente · opcional</span><input className="field" value={form.client} onChange={e => change('client',e.target.value)}/></label>
       <label><span className="label">Salón *</span><select className="field" value={form.salonId} onChange={e => { const s=db.salons.find(x=>x.id===e.target.value); setForm(f=>({...f,salonId:e.target.value,address:s?.address||f.address})); }}>{db.salons.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
       <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16)),arriveAt:arriveAtFor(startsAt,f.arriveAt.slice(11,16)),schedule:f.schedule.map(m=>({...m,at:momentAtFor(startsAt,m.at.slice(11,16))}))})); }} required/></label>
