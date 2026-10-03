@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Wallet, MapPin, Phone, LogOut } from 'lucide-react';
+import { CalendarDays, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
+import { calendarDays, shiftMonth } from '@/lib/calendar';
 import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
@@ -28,14 +29,30 @@ type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Paym
 
 const time = (iso: string | null) => iso ? iso.slice(11, 16) : '';
 const longDay = (iso: string) => cap(new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso.slice(0, 10) + 'T12:00')));
+const weekday = (iso: string) => new Intl.DateTimeFormat('es-AR', { weekday: 'short' }).format(new Date(iso.slice(0, 10) + 'T12:00')).replace('.', '');
+const monthName = (month: string) => cap(new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(month + '-01T12:00')));
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const needsAnswer = (d: CmDate) => d.event_status === 'pendiente' && d.confirmation === 'pendiente';
 
-/** Lo que ve una CM: sus fechas y el estado de sus pagos. */
+/** Estado de una fecha para la CM, en una palabra y con su color. */
+function status(d: CmDate): { label: string; tone: 'warn' | 'ok' | 'danger' | 'muted' } {
+  if (d.event_status === 'cancelado') return { label: 'Cancelada', tone: 'danger' };
+  if (d.event_status === 'realizado') return { label: 'Realizada', tone: 'muted' };
+  if (d.confirmation === 'rechazada') return { label: 'No vas', tone: 'danger' };
+  if (d.confirmation === 'confirmada') return { label: 'Confirmada', tone: 'ok' };
+  return { label: 'Confirmar', tone: 'warn' };
+}
+const fechaInUrl = () => new URLSearchParams(window.location.search).get('fecha');
+
+/** Lo que ve una CM: sus fechas en un calendario, cada fecha en su pantalla, y sus pagos. */
 export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [home, setHome] = useState<Home | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<'fechas' | 'pagos'>('fechas');
   const [busy, setBusy] = useState('');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [month, setMonth] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabaseBrowser().rpc('cm_home');
@@ -48,6 +65,20 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
     document.addEventListener('visibilitychange', refresh);
     return () => document.removeEventListener('visibilitychange', refresh);
   }, [load]);
+
+  // Cada fecha tiene su dirección (?fecha=…): el "atrás" del celular vuelve al calendario,
+  // y los avisos pueden abrir una fecha directo.
+  useEffect(() => {
+    setOpenId(fechaInUrl());
+    const onPop = () => setOpenId(fechaInUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const openDate = (id: string) => { window.history.pushState({ fecha: id }, '', `${window.location.pathname}?fecha=${id}`); setOpenId(id); window.scrollTo(0, 0); };
+  const closeDate = () => {
+    if (window.history.state?.fecha) window.history.back();
+    else { window.history.replaceState(null, '', window.location.pathname); setOpenId(null); }
+  };
 
   const act = async (key: string, run: () => PromiseLike<{ error: { message: string } | null }>, done: string, celebrate = false) => {
     setBusy(key);
@@ -78,42 +109,64 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   const now = today();
   const upcoming = home.dates.filter(d => d.starts_at.slice(0, 10) >= now);
-  const past = home.dates.filter(d => !upcoming.includes(d)).reverse();
-  const pending = home.concepts.reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
-  const toAnswer = upcoming.filter(d => d.confirmation === 'pendiente' && d.event_status === 'pendiente').length;
+  const toAnswer = upcoming.filter(needsAnswer);
 
-  return <>{header}<main className="cm-page space-y-7">
+  // ---------- Una fecha, en su pantalla ----------
+  const open = openId ? home.dates.find(d => d.id === openId) : undefined;
+  if (openId) return <>{header}<main className="cm-page space-y-5">
+    <button type="button" className="back-link" onClick={closeDate}><ArrowLeft size={17}/> Mis fechas</button>
+    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick}/>
+      : <div className="card p-5"><p className="font-bold">Esta fecha ya no está en tu agenda.</p><p className="muted mt-1 text-sm">Puede que Dafne la haya cambiado o quitado.</p></div>}
+  </main></>;
+
+  // ---------- Calendario y lista del mes ----------
+  const shownMonth = month ?? (upcoming[0]?.starts_at.slice(0, 7) ?? now.slice(0, 7));
+  const byDay = new Map<string, CmDate[]>();
+  for (const d of home.dates) byDay.set(d.starts_at.slice(0, 10), [...(byDay.get(d.starts_at.slice(0, 10)) ?? []), d]);
+  const monthDates = home.dates.filter(d => d.starts_at.startsWith(shownMonth));
+  const pickDay = (day: string) => {
+    const events = byDay.get(day) ?? [];
+    if (events.length === 1) { openDate(events[0].id); return; }
+    setSelectedDay(day);
+    if (events.length) document.getElementById(`dia-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  const moveMonth = (delta: number) => { setMonth(shiftMonth(shownMonth, delta)); setSelectedDay(null); };
+  const pending = home.concepts.reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
+
+  return <>{header}<main className="cm-page space-y-6">
     <InstallHint/>
     <PushPrompt forCm/>
-    <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{toAnswer ? `Tenés ${toAnswer === 1 ? 'una fecha' : `${toAnswer} fechas`} para confirmar.` : upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
+    <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
+
+    {toAnswer.length > 0 && <section className="cm-to-answer" aria-labelledby="to-answer-title">
+      <h2 id="to-answer-title" className="font-bold">{toAnswer.length === 1 ? 'Tenés una fecha para confirmar' : `Tenés ${toAnswer.length} fechas para confirmar`}</h2>
+      <ul className="cm-rows">{toAnswer.map(d => <li key={d.id}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
+    </section>}
+
     <div className="coverage-view-switch" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Mis fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Mis pagos</button></div>
 
-    {tab === 'fechas' ? <section className="space-y-5" aria-label="Mis fechas">
-      {upcoming.length === 0 && <p className="muted">Cuando Dafne te asigne una fiesta, aparece acá.</p>}
-      {upcoming.map(d => <article key={d.id} className="cm-date" aria-label={d.name}>
-        {/* La entrada queda corta. El mapa va afuera: en Safari del iPhone, un mapa embebido dentro de la entrada (que usa máscara para las muescas) no se dibuja. */}
-        <div className={`ticket ticket-${d.event_status}`}>
-          <div className="ticket-main">
-          <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span><span>{longDay(d.starts_at)}</span></p>
-          <h2 className="ticket-name">{d.name}</h2>
-          <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
-          <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
-          {d.notes && <p className="ticket-note">{d.notes}</p>}
-          </div>
-          <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
+    {tab === 'fechas' ? <section className="space-y-4" aria-label="Mis fechas">
+      <div className="cm-cal card">
+        <div className="cm-cal-head">
+          <button type="button" className="btn btn-quiet btn-small" aria-label="Mes anterior" onClick={() => moveMonth(-1)}><ChevronLeft size={18}/></button>
+          <h2 className="font-bold" aria-live="polite">{monthName(shownMonth)}</h2>
+          <button type="button" className="btn btn-quiet btn-small" aria-label="Mes siguiente" onClick={() => moveMonth(1)}><ChevronRight size={18}/></button>
         </div>
-        <div className="cm-date-body">
-          {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
-          {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
-            {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
-            {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Honorario {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
-            {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
-          </div>}
-          {d.team.length > 0 && <div className="mt-4"><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
-          {d.checklist.length > 0 && <div className="mt-4"><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
-        </div>
-      </article>)}
-      {past.length > 0 && <details className="cm-past"><summary className="cursor-pointer font-bold">Fechas anteriores ({past.length})</summary><ul className="ledger card mt-3">{past.map(d => { const day = shortDay(d.starts_at); return <li key={d.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">{d.name}</span><span className="muted text-sm">{d.event_status === 'cancelado' ? 'Cancelada' : d.confirmation === 'rechazada' ? 'No la cubriste' : d.salon}</span></span></li>; })}</ul></details>}
+        <div className="cm-cal-week" aria-hidden="true">{['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <span key={i}>{d}</span>)}</div>
+        <div className="cm-cal-grid">{calendarDays(shownMonth).map(day => {
+          const events = byDay.get(day) ?? [];
+          const classes = ['cm-cal-day', day.slice(0, 7) !== shownMonth && 'is-outside', day === now && 'is-today', day === selectedDay && 'is-selected', events.length > 0 && 'has-events'].filter(Boolean).join(' ');
+          return <button key={day} type="button" className={classes} onClick={() => pickDay(day)} disabled={!events.length}
+            aria-label={`${longDay(day)}${events.length ? `: ${events.map(e => `${e.name}, ${status(e).label}`).join('; ')}` : ''}`}>
+            <span>{Number(day.slice(8))}</span>
+            {events.length > 0 && <span className="cm-cal-dots">{events.slice(0, 3).map(e => <i key={e.id} className={`dot-${status(e).tone}`}/>)}</span>}
+          </button>;
+        })}</div>
+        <p className="cm-cal-legend"><span><i className="dot-warn"/> Para confirmar</span><span><i className="dot-ok"/> Confirmada</span><span><i className="dot-muted"/> Realizada</span></p>
+      </div>
+      {monthDates.length
+        ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
+        : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
     </section> : <section className="space-y-7" aria-label="Mis pagos">
       <div className="ledger-card card">
         <div className="ledger-head"><div><h2 className="section-title">Te falta cobrar</h2><p className="ledger-total">{ars(pending)}</p></div></div>
@@ -129,6 +182,48 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
     <ChangePassword/>
   </main></>;
+}
+
+/** Una línea por fiesta: día, nombre, hora y salón, y su estado. Abre la fecha. */
+function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
+  const s = status(d);
+  return <button type="button" className="cm-row" onClick={() => onOpen(d.id)}>
+    <span className="cm-row-date"><strong>{Number(d.starts_at.slice(8, 10))}</strong>{weekday(d.starts_at)}</span>
+    <span className="min-w-0 flex-1 text-left"><span className="block font-bold leading-tight line-clamp-2">{d.name}</span><span className="muted block truncate text-sm">{time(d.starts_at)} hs · {d.salon}</span></span>
+    <span className={`badge cm-status-${s.tone}`}>{s.label}</span>
+    <ChevronRight size={18} className="shrink-0 text-[var(--muted)]"/>
+  </button>;
+}
+
+/** La fecha completa: la entrada y, abajo, el mapa, la respuesta, el equipo y el contenido. */
+function DateCard({ d, now, busy, answer, tick }: {
+  d: CmDate; now: string; busy: string;
+  answer: (d: CmDate, value: 'confirmada' | 'rechazada') => Promise<void>;
+  tick: (d: CmDate, item: Item, checked: boolean) => Promise<void>;
+}) {
+  return <article className="cm-date" aria-label={d.name}>
+    {/* El mapa va afuera de la entrada: en Safari del iPhone, un mapa embebido dentro de algo con máscara (las muescas) no se dibuja. */}
+    <div className={`ticket ticket-${d.event_status}`}>
+      <div className="ticket-main">
+        <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span><span>{longDay(d.starts_at)}</span></p>
+        <h1 className="ticket-name">{d.name}</h1>
+        <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
+        <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
+        {d.notes && <p className="ticket-note">{d.notes}</p>}
+      </div>
+      <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
+    </div>
+    <div className="cm-date-body">
+      {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
+      {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
+        {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
+        {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Honorario {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
+        {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
+      </div>}
+      {d.team.length > 0 && <div><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
+      {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
+    </div>
+  </article>;
 }
 
 function ChangePassword() {

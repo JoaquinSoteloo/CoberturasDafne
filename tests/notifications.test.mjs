@@ -4,12 +4,12 @@ import { buildMessage } from '../src/lib/notifications.ts';
 
 const coverage = { coverage_id: 'cov-1', coverage_name: 'Cumple de Martina', starts_at: '2026-10-10T21:00:00', salon: 'Eclipse' };
 
-test('recordatorio: Dafne va al detalle, la CM a su inicio', () => {
+test('recordatorio: Dafne va al detalle, la CM a esa fecha', () => {
   const forDafne = buildMessage({ kind: 'reminder', data: coverage, for_coordinator: true }, '2026-10-09');
   assert.equal(forDafne.title, 'Mañana: Cumple de Martina');
   assert.equal(forDafne.body, 'sábado, 10 de octubre a las 21:00 en Eclipse.');
   assert.equal(forDafne.url, '/coberturas/cov-1');
-  assert.equal(buildMessage({ kind: 'reminder', data: coverage, for_coordinator: false }, '2026-10-09').url, '/');
+  assert.equal(buildMessage({ kind: 'reminder', data: coverage, for_coordinator: false }, '2026-10-09').url, '/?fecha=cov-1');
   // Si la fiesta se cargó con menos de un día de anticipación, el aviso dice "Hoy".
   assert.equal(buildMessage({ kind: 'reminder', data: coverage, for_coordinator: true }, '2026-10-10').title, 'Hoy: Cumple de Martina');
 });
@@ -17,6 +17,7 @@ test('recordatorio: Dafne va al detalle, la CM a su inicio', () => {
 test('fecha nueva para la CM', () => {
   const m = buildMessage({ kind: 'assigned', data: coverage, for_coordinator: false });
   assert.equal(m.title, 'Tenés una fecha nueva');
+  assert.equal(m.url, '/?fecha=cov-1');
   assert.match(m.body, /^Cumple de Martina, sábado, 10 de octubre a las 21:00 en Eclipse\. Entrá para confirmarla\.$/);
 });
 
