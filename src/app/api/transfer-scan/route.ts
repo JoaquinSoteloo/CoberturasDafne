@@ -22,9 +22,12 @@ const Transfer = z.object({
   destinatario_alias: z.string().nullable(),
   destinatario_cvu_cbu: z.string().nullable(),
   numero_operacion: z.string().nullable(),
+  direccion: z.enum(['enviada', 'recibida', 'no_se_sabe']),
+  remitente_nombre: z.string().nullable(),
 });
 
 const INSTRUCTIONS = `Leés comprobantes de transferencias de dinero de Argentina (Mercado Pago, bancos, billeteras): capturas o PDF.
+La dueña de la cuenta es una coordinadora de eventos: a veces le paga a su equipo y a veces le pagan los salones.
 Devolvé:
 - es_comprobante_de_transferencia: false si no es el comprobante de una transferencia enviada.
 - monto: lo transferido, como número en pesos (por ejemplo 85000 o 85000.5). Ojo: en Argentina "85.000" son ochenta y cinco mil.
@@ -34,9 +37,12 @@ Devolvé:
 - destinatario_alias: el alias de quien recibe, si aparece.
 - destinatario_cvu_cbu: el CVU o CBU de quien recibe, solo los números, si aparece completo.
 - numero_operacion: el número de operación o comprobante.
+- direccion: "enviada" si es plata que mandó la dueña de la cuenta ("Transferiste", "Enviaste", "Le transferiste a…"),
+  "recibida" si es plata que le llegó ("Recibiste", "Te transfirieron", "Ingreso de dinero"), "no_se_sabe" si no está claro.
+- remitente_nombre: el nombre de quien MANDA la plata, si aparece.
 Si un dato no está o no se lee con seguridad, devolvé null. No inventes datos.`;
 
-/** Lee con IA el comprobante de una transferencia de Dafne a una CM. Solo la coordinadora. Los datos se revisan antes de guardar. */
+/** Lee con IA el comprobante de una transferencia: un pago de Dafne a una CM o un cobro de un salón. Solo la coordinadora. Los datos se revisan antes de guardar. */
 export async function POST(request: Request) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
@@ -79,6 +85,8 @@ export async function POST(request: Request) {
       recipientAlias: text(r.destinatario_alias),
       recipientAccount: r.destinatario_cvu_cbu ? r.destinatario_cvu_cbu.replace(/\D/g, '') || null : null,
       operation: text(r.numero_operacion),
+      direction: r.direccion === 'enviada' ? 'sent' : r.direccion === 'recibida' ? 'received' : null,
+      senderName: text(r.remitente_nombre),
     };
     return NextResponse.json(data);
   } catch (error) {

@@ -101,7 +101,7 @@ export function fromRows(rows: Rows): Db {
       checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) })),
       schedule: (schedule.get(c.id) ?? []).map(m => ({ id: m.id, at: minutes(m.at), label: str(m.label), notify: Boolean(m.notify) }))
     })),
-    collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes) })),
+    collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes), ...(p.receipt_path ? { receiptPath: str(p.receipt_path) } : {}) })),
     cmPayments: rows.cm_payments.map(p => ({
       id: p.id, cmId: str(p.cm_id), date: str(p.date), notes: str(p.notes), ...(p.receipt_path ? { receiptPath: str(p.receipt_path) } : {}),
       allocations: ((p.allocations ?? []) as Allocation[]).slice().sort((a, b) => a.position - b.position)

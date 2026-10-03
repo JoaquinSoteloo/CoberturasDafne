@@ -25,10 +25,12 @@ const extension = (blob: Blob, name: string) =>
   blob.type === 'application/pdf' ? 'pdf' : blob.type === 'image/jpeg' ? 'jpg' : (name.split('.').pop() || 'img').toLowerCase();
 
 /** De qué es el comprobante: un gasto (Uber) o un pago de Dafne a una CM. */
-export type ReceiptTarget = 'expense' | 'payment';
-const folder = (target: ReceiptTarget, id: string) => (target === 'payment' ? `pago-${id}` : id);
+export type ReceiptTarget = 'expense' | 'payment' | 'collection';
+const folder = (target: ReceiptTarget, id: string) => (target === 'payment' ? `pago-${id}` : target === 'collection' ? `cobro-${id}` : id);
 const link = (supabase: SupabaseClient, target: ReceiptTarget, id: string, path: string | null) =>
-  target === 'payment' ? supabase.rpc('set_payment_receipt', { p_payment: id, p_path: path }) : supabase.rpc('set_expense_receipt', { p_expense: id, p_path: path });
+  target === 'payment' ? supabase.rpc('set_payment_receipt', { p_payment: id, p_path: path })
+    : target === 'collection' ? supabase.rpc('set_collection_receipt', { p_collection: id, p_path: path })
+    : supabase.rpc('set_expense_receipt', { p_expense: id, p_path: path });
 
 /** Sube el comprobante y lo vincula al gasto (o al pago). Si había otro, lo borra. Devuelve la ubicación nueva. */
 export async function attachReceipt(supabase: SupabaseClient, expenseId: string, file: File, previous?: string | null, target: ReceiptTarget = 'expense') {
