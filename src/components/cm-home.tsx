@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
+import { CalendarDays, Clock, FileCheck2, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
@@ -11,6 +11,7 @@ import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
 import { ReceiptControl } from './receipt-control';
 import { CmUbers } from './cm-ubers';
+import { openReceipt } from '@/lib/receipts';
 import { MapPreview } from './map-preview';
 import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
@@ -32,7 +33,7 @@ type CmDate = {
   checklist: Item[]; schedule?: Moment[]; team: Mate[];
 };
 type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; loaded_by_cm?: boolean | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
-type Payment = { id: string; date: string; amount_cents: number };
+type Payment = { id: string; date: string; amount_cents: number; receipt_path?: string | null };
 type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
 
 const time = (iso: string | null) => iso ? iso.slice(11, 16) : '';
@@ -212,7 +213,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
           {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()} disabledReason={preview ? 'Solo para mirar.' : undefined} cm={{ paid: c.paid_cents > 0, loadedByCm: !!c.loaded_by_cm }}/></span>}
         </li>; })}</ul> : <p className="muted px-5 pb-5">Todavía no tenés honorarios cargados.</p>}
       </div>
-      <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
+      <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">Pago de Dafne</span>{p.receipt_path && <PaymentReceipt path={p.receipt_path}/>}</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
     </section>}
 
     {!preview && <><CalendarSubscribe who="cm"/><ChangePassword/></>}
@@ -265,6 +266,17 @@ function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }
       {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
     </div>
   </article>;
+}
+
+/** Ver la transferencia que subió Dafne (link que vence a los 5 minutos). */
+function PaymentReceipt({ path }: { path: string }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    setBusy(true);
+    try { await openReceipt(supabaseBrowser(), path); } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo abrir el comprobante.'); }
+    finally { setBusy(false); }
+  };
+  return <button type="button" className="text-link mt-1 inline-flex items-center gap-1 text-sm" disabled={busy} onClick={() => void open()}><FileCheck2 size={14}/>{busy ? 'Abriendo…' : 'Ver comprobante'}</button>;
 }
 
 function ChangePassword() {

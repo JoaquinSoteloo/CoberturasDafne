@@ -3,16 +3,16 @@ import { useRef, useState } from 'react';
 import { Paperclip, FileCheck2, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { attachReceipt, deleteCmUber, openReceipt, removeReceipt } from '@/lib/receipts';
+import { attachReceipt, deleteCmUber, openReceipt, removeReceipt, type ReceiptTarget } from '@/lib/receipts';
 
 /**
  * Adjuntar, ver, cambiar o quitar el comprobante de un gasto.
  * Para la CM (`cm`): si ya tiene algún pago, solo puede verlo; si el Uber lo cargó ella, quitar
  * el comprobante borra el Uber entero; si lo cargó Dafne, puede cambiarlo pero no quitarlo.
  */
-export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm }: {
+export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm, target = 'expense' }: {
   expenseId: string; path?: string | null; onChange: (path: string | null) => void; disabledReason?: string;
-  cm?: { paid: boolean; loadedByCm: boolean };
+  cm?: { paid: boolean; loadedByCm: boolean }; target?: ReceiptTarget;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<'' | 'subiendo' | 'abriendo' | 'quitando'>('');
@@ -22,7 +22,7 @@ export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm }
     finally { setBusy(''); }
   };
   const pick = (file?: File) => file && run('subiendo', async () => {
-    const next = await attachReceipt(supabaseBrowser(), expenseId, file, path);
+    const next = await attachReceipt(supabaseBrowser(), expenseId, file, path, target);
     onChange(next); toast.success(path ? 'Comprobante cambiado' : 'Comprobante adjuntado');
   });
   const disabled = !!busy || !!disabledReason;
@@ -34,7 +34,7 @@ export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm }
       if (window.confirm('¿Borrar este Uber? Se borra junto con el comprobante y le avisamos a Dafne.')) void run('quitando', async () => { await deleteCmUber(supabaseBrowser(), expenseId); onChange(null); toast.success('Uber borrado'); });
       return;
     }
-    if (window.confirm('¿Quitar el comprobante? El archivo se borra.')) void run('quitando', async () => { await removeReceipt(supabaseBrowser(), expenseId, path); onChange(null); toast.success('Comprobante quitado'); });
+    if (window.confirm('¿Quitar el comprobante? El archivo se borra.')) void run('quitando', async () => { await removeReceipt(supabaseBrowser(), expenseId, path, target); onChange(null); toast.success('Comprobante quitado'); });
   };
 
   return <span className="receipt-control">

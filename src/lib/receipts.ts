@@ -24,22 +24,28 @@ export async function shrink(file: File): Promise<Blob> {
 const extension = (blob: Blob, name: string) =>
   blob.type === 'application/pdf' ? 'pdf' : blob.type === 'image/jpeg' ? 'jpg' : (name.split('.').pop() || 'img').toLowerCase();
 
-/** Sube el comprobante y lo vincula al gasto. Si había otro, lo borra. Devuelve la ubicación nueva. */
-export async function attachReceipt(supabase: SupabaseClient, expenseId: string, file: File, previous?: string | null) {
+/** De qué es el comprobante: un gasto (Uber) o un pago de Dafne a una CM. */
+export type ReceiptTarget = 'expense' | 'payment';
+const folder = (target: ReceiptTarget, id: string) => (target === 'payment' ? `pago-${id}` : id);
+const link = (supabase: SupabaseClient, target: ReceiptTarget, id: string, path: string | null) =>
+  target === 'payment' ? supabase.rpc('set_payment_receipt', { p_payment: id, p_path: path }) : supabase.rpc('set_expense_receipt', { p_expense: id, p_path: path });
+
+/** Sube el comprobante y lo vincula al gasto (o al pago). Si había otro, lo borra. Devuelve la ubicación nueva. */
+export async function attachReceipt(supabase: SupabaseClient, expenseId: string, file: File, previous?: string | null, target: ReceiptTarget = 'expense') {
   const blob = await shrink(file);
   if (blob.size > MAX_BYTES) throw new Error('El archivo pesa más de 5 MB. Probá con una captura de pantalla.');
-  const path = `${expenseId}/${crypto.randomUUID()}.${extension(blob, file.name)}`;
+  const path = `${folder(target, expenseId)}/${crypto.randomUUID()}.${extension(blob, file.name)}`;
   const storage = supabase.storage.from(BUCKET);
   const { error: uploadError } = await storage.upload(path, blob, { contentType: blob.type || undefined, upsert: false });
   if (uploadError) throw new Error('No se pudo subir el archivo. Revisá la conexión y probá de nuevo.');
-  const { error } = await supabase.rpc('set_expense_receipt', { p_expense: expenseId, p_path: path });
+  const { error } = await link(supabase, target, expenseId, path);
   if (error) { await storage.remove([path]); throw new Error(error.message || 'No se pudo guardar el comprobante.'); }
   if (previous) await storage.remove([previous]);
   return path;
 }
 
-export async function removeReceipt(supabase: SupabaseClient, expenseId: string, path: string) {
-  const { error } = await supabase.rpc('set_expense_receipt', { p_expense: expenseId, p_path: null });
+export async function removeReceipt(supabase: SupabaseClient, expenseId: string, path: string, target: ReceiptTarget = 'expense') {
+  const { error } = await link(supabase, target, expenseId, null);
   if (error) throw new Error(error.message || 'No se pudo quitar el comprobante.');
   await supabase.storage.from(BUCKET).remove([path]);
 }

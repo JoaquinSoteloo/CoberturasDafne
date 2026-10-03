@@ -103,7 +103,7 @@ export function fromRows(rows: Rows): Db {
     })),
     collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes) })),
     cmPayments: rows.cm_payments.map(p => ({
-      id: p.id, cmId: str(p.cm_id), date: str(p.date), notes: str(p.notes),
+      id: p.id, cmId: str(p.cm_id), date: str(p.date), notes: str(p.notes), ...(p.receipt_path ? { receiptPath: str(p.receipt_path) } : {}),
       allocations: ((p.allocations ?? []) as Allocation[]).slice().sort((a, b) => a.position - b.position)
         .map(a => ({ conceptId: conceptId(a), amountCents: Number(a.amount_cents) }))
     }))

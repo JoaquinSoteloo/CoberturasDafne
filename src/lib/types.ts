@@ -31,5 +31,5 @@ export type Coverage = {
 };
 export type Collection = { id: string; coverageId: string; date: string; amountCents: number; notes: string };
 export type Allocation = { conceptId: string; amountCents: number };
-export type CmPayment = { id: string; cmId: string; date: string; allocations: Allocation[]; notes: string };
+export type CmPayment = { id: string; cmId: string; date: string; allocations: Allocation[]; notes: string; /** Captura de la transferencia. */ receiptPath?: string };
 export type Db = { version: 1; salons: Salon[]; cms: Cm[]; coverages: Coverage[]; collections: Collection[]; cmPayments: CmPayment[] };
