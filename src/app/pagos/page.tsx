@@ -67,7 +67,7 @@ function PaymentsContent(){
       if(!r.isTransfer){toast.error('No parece el comprobante de una transferencia. Revisá el archivo.');return;}
       const kind=classifyTransfer(db.cms,r,ownerWords)?.kind??(hint==='cobros'?'cobro':hint==='pagos'?'pago':null);
       if(kind==='pago')applyPago(r,file);else if(kind==='cobro')applyCobro(r,file);else setUnsure({r,file});
-    }catch{toast.error('No se pudo leer el comprobante. Completá los datos a mano.');}
+    }catch(e){console.error('Cargar comprobante',e);toast.error(`Falló la app al usar el comprobante: ${e instanceof Error?e.message:String(e)}`);}
     finally{setScanning(false);}
   };
   const [editing,setEditing]=useState<{kind:'cobro'|'pago';id:string}|null>(null);

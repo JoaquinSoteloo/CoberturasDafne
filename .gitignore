@@ -5,3 +5,6 @@ node_modules
 !.env.example
 *.tsbuildinfo
 .claude/
+
+# Comprobante para probar la lectura con IA en la compu (no se sube)
+comprobante-prueba.*

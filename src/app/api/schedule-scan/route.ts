@@ -3,12 +3,13 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
+import { openAiReason, withModel } from '@/lib/openai-models';
 import type { ParsedMoment } from '@/lib/schedule';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const MODEL = process.env.OPENAI_SCHEDULE_MODEL || process.env.OPENAI_RECEIPT_MODEL || 'gpt-6-luna';
+const MODEL = process.env.OPENAI_SCHEDULE_MODEL || process.env.OPENAI_RECEIPT_MODEL;
 const MAX_CHARS = 4000;
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
@@ -41,17 +42,18 @@ export async function POST(request: Request) {
   if (text.length > MAX_CHARS) return fail('El texto es muy largo. Pegá solo el cronograma.', 400);
 
   try {
-    const response = await new OpenAI({ apiKey }).responses.parse({
-      model: MODEL,
+    const response = await withModel(MODEL, model => new OpenAI({ apiKey }).responses.parse({
+      model,
       instructions: INSTRUCTIONS,
       input: text,
       text: { format: zodTextFormat(Schedule, 'cronograma') },
-    });
+    }));
     const items: ParsedMoment[] = (response.output_parsed?.momentos ?? [])
       .map(m => ({ time: m.hora.trim(), label: m.momento.trim() }))
       .filter(m => /^([01]\d|2[0-3]):[0-5]\d$/.test(m.time) && m.label);
     return NextResponse.json({ items });
-  } catch {
-    return fail('No se pudo leer el cronograma con IA. Probá de nuevo en un rato.', 502);
+  } catch (error) {
+    console.error('schedule-scan', error);
+    return fail(openAiReason(error), 502);
   }
 }

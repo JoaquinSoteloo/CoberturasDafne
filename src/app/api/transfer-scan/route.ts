@@ -3,12 +3,13 @@ import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase/server';
+import { openAiReason, withModel } from '@/lib/openai-models';
 import type { TransferData } from '@/lib/transfer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-const MODEL = process.env.OPENAI_RECEIPT_MODEL || 'gpt-6-luna';
+const MODEL = process.env.OPENAI_RECEIPT_MODEL;
 const MAX_BYTES = 4 * 1024 * 1024;
 
 const fail = (error: string, status: number) => NextResponse.json({ error }, { status });
@@ -66,16 +67,16 @@ export async function POST(request: Request) {
     : { type: 'input_image' as const, image_url: `data:${file.type};base64,${base64}`, detail: 'auto' as const };
 
   try {
-    const response = await new OpenAI({ apiKey }).responses.parse({
-      model: MODEL,
+    const response = await withModel(MODEL, model => new OpenAI({ apiKey }).responses.parse({
+      model,
       input: [
         { role: 'system', content: INSTRUCTIONS },
         { role: 'user', content: [attachment, { type: 'input_text', text: 'Leé este comprobante.' }] }
       ],
       text: { format: zodTextFormat(Transfer, 'transferencia') }
-    });
+    }));
     const r = response.output_parsed;
-    if (!r) return fail('No se pudo leer el comprobante. Cargá los datos a mano.', 422);
+    if (!r) return fail(`OpenAI no devolvió datos${response.output_text ? '' : ' (respuesta vacía)'}. Cargá los datos a mano.`, 422);
     const text = (v: string | null) => v?.trim() || null;
     const data: TransferData = {
       isTransfer: r.es_comprobante_de_transferencia,
@@ -90,8 +91,7 @@ export async function POST(request: Request) {
     };
     return NextResponse.json(data);
   } catch (error) {
-    if (error instanceof OpenAI.AuthenticationError) return fail('La clave de OpenAI no es válida.', 502);
-    if (error instanceof OpenAI.RateLimitError) return fail('OpenAI rechazó el pedido por límite o saldo. Revisá la cuenta y probá de nuevo.', 502);
-    return fail('No se pudo leer el comprobante. Probá de nuevo o cargá los datos a mano.', 502);
+    console.error('transfer-scan', error);
+    return fail(openAiReason(error), 502);
   }
 }
