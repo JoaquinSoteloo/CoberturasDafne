@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock, FolderUp, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
+import { CalendarDays, Clock, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
@@ -26,7 +26,7 @@ type Mate = { name: string; phone: string; confirmation: string };
 type Moment = { id: string; at: string; label: string; notify: boolean };
 type CmDate = {
   id: string; name: string; party_type: string; client: string; salon: string; address: string;
-  starts_at: string; ends_at: string | null; arrive_at: string | null; drive_url?: string; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
+  starts_at: string; ends_at: string | null; arrive_at: string | null; drive_url?: string; live_posting?: boolean | null; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
   lat: number | null; lng: number | null;
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; schedule?: Moment[]; team: Mate[];
@@ -240,7 +240,7 @@ function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }
     {/* El mapa va afuera de la entrada: en Safari del iPhone, un mapa embebido dentro de algo con máscara (las muescas) no se dibuja. */}
     <div className={`ticket ticket-${d.event_status}`}>
       <div className="ticket-main">
-        <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span><span>{longDay(d.starts_at)}</span></p>
+        <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span>{d.live_posting && <span className="live-badge">En vivo</span>}<span>{longDay(d.starts_at)}</span></p>
         <h1 className="ticket-name">{d.name}</h1>
         <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
         {d.arrive_at && <p className="ticket-arrive"><Clock size={15}/>Llegá a las {time(d.arrive_at)}</p>}
@@ -259,6 +259,7 @@ function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }
       </div>}
       {!!d.schedule?.length && <div><p className="text-sm font-bold">Cronograma de la noche</p><ol className="schedule-list mt-2">{d.schedule.map(m => <li key={m.id}><time>{time(m.at)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify && d.event_status === 'pendiente' && d.confirmation !== 'rechazada' && <span className="schedule-bell" title="Te llega un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Te avisamos 10 minutos antes</span></span>}</li>)}</ol></div>}
       {d.team.length > 0 && <div><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
+      {d.live_posting && d.event_status !== 'cancelado' && <p className="live-note"><Radio size={18} aria-hidden="true"/><span><strong>Esta fiesta sale en vivo.</strong> A medida que tengas videos editados, se suben a la cuenta de IG durante la fiesta.</span></p>}
       {/^https:\/\//i.test(d.drive_url ?? '') && d.confirmation !== 'rechazada' && d.event_status !== 'cancelado' && <a className="drive-link" href={d.drive_url} target="_blank" rel="noopener noreferrer"><FolderUp size={20} aria-hidden="true"/><span className="min-w-0 flex-1"><span className="block font-bold">Subí el contenido acá</span><span className="block truncate text-sm opacity-80">Carpeta de Drive de esta fiesta</span></span></a>}
       <CmUbers event={{ id: d.id, startsAt: d.starts_at, endsAt: d.ends_at, address: d.address }} ubers={ubers} canAdd={d.confirmation === 'confirmada' && d.event_status !== 'cancelado'} preview={preview} onChange={reload}/>
       {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}

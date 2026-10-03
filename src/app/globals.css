@@ -158,6 +158,11 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .cm-uber-ai{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:12px;background:var(--accent-soft);font-size:14px;font-weight:600}
 .cm-uber-ai svg{flex-shrink:0;margin-top:2px;color:var(--accent)}
 .cm-uber-form{padding:14px;border-radius:14px;border:1.5px dashed var(--line)}
+.live-badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;background:var(--rosa);color:#fff;font-size:12px;font-weight:800;letter-spacing:.02em}
+.live-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--danger-soft);font-size:14px;line-height:1.4}
+.live-note svg{flex-shrink:0;margin-top:1px;color:var(--rosa)}
+.live-toggle{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);cursor:pointer}
+.live-toggle input{width:20px;height:20px;margin-top:2px;accent-color:var(--rosa);flex-shrink:0}
 .drive-link{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--accent);color:#fff;text-decoration:none}
 .drive-link:focus-visible{outline:3px solid var(--flash);outline-offset:3px}
 .live-now{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}

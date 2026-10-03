@@ -23,6 +23,8 @@ export type Coverage = {
   address: string; startsAt: string; endsAt: string;
   /** Hora en que tienen que llegar las CM ('' = a la hora de inicio). */
   arriveAt: string; notes: string;
+  /** Sale en vivo: los videos editados se suben a la cuenta de IG durante la fiesta. */
+  livePosting: boolean;
   assignments: Assignment[]; agreedCents: number; expenses: Expense[];
   checklist: ChecklistItem[]; schedule: Moment[]; driveUrl: string; deliveredPieces: number;
   deliveryNotes: string; eventStatus: EventStatus; deliveryStatus: DeliveryStatus;

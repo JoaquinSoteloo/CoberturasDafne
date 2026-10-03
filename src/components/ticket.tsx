@@ -12,7 +12,7 @@ export function Ticket({coverage:c,db,href,children}:{coverage:Coverage;db:Db;hr
   const salon=db.salons.find(s=>s.id===c.salonId)?.name;
   const body=<>
     <div className="ticket-main">
-      <p className="ticket-when"><span className={`when-pill when-${c.eventStatus}`}>{whenLabel(c)}</span><span>{longDay(c.startsAt)}</span></p>
+      <p className="ticket-when"><span className={`when-pill when-${c.eventStatus}`}>{whenLabel(c)}</span>{c.livePosting&&<span className="live-badge">En vivo</span>}<span>{longDay(c.startsAt)}</span></p>
       {href?<p className="ticket-name">{c.name}</p>:<h1 className="ticket-name">{c.name}</h1>}
       <p className="ticket-place"><MapPin size={15}/>{[c.partyType,salon].filter(Boolean).join(', en ')}</p>
       {c.arriveAt&&<p className="ticket-arrive"><Clock size={15}/>Las CM llegan {c.arriveAt.slice(11,16)}</p>}
