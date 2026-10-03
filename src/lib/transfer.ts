@@ -81,3 +81,14 @@ export function matchCollection(list: Pending[], amountCents: number, date: stri
   }
   return null;
 }
+
+/**
+ * ¿El comprobante es de un movimiento ya registrado que no tiene comprobante? Mismo importe y
+ * fecha a menos de 15 días; entre varios, el de fecha más cercana. Si no hay, null (es nuevo).
+ */
+export function findUnreceipted<T extends { id: string; amountCents: number; date: string; hasReceipt: boolean }>(list: T[], amountCents: number, date: string | null): T | null {
+  const when = date ? new Date(`${date}T12:00`).getTime() : null;
+  const days = (d: string) => (when === null ? 0 : Math.abs(new Date(`${d}T12:00`).getTime() - when) / 86_400_000);
+  return list.filter(m => !m.hasReceipt && m.amountCents === amountCents && days(m.date) <= 15)
+    .sort((a, b) => days(a.date) - days(b.date))[0] ?? null;
+}

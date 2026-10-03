@@ -47,3 +47,15 @@ test('encuentra la fiesta del cobro por el importe', async () => {
   assert.equal(matchCollection(list, 10000000, '2026-10-03', null)?.id, 'a');           // seña: alguna que deba al menos eso
   assert.equal(matchCollection(list, 99900000, '2026-10-03', null), null);
 });
+
+test('el comprobante de un cobro ya registrado sin comprobante se reconoce', async () => {
+  const { findUnreceipted } = await import('../src/lib/transfer.ts');
+  const list = [
+    { id: 'viejo', amountCents: 15000000, date: '2026-10-01', hasReceipt: false },
+    { id: 'con', amountCents: 15000000, date: '2026-10-02', hasReceipt: true },
+    { id: 'lejos', amountCents: 15000000, date: '2026-08-01', hasReceipt: false },
+  ];
+  assert.equal(findUnreceipted(list, 15000000, '2026-10-02')?.id, 'viejo');
+  assert.equal(findUnreceipted(list, 15000000, null)?.id, 'viejo');
+  assert.equal(findUnreceipted(list, 20000000, '2026-10-02'), null);
+});
