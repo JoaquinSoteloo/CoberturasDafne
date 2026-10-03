@@ -81,7 +81,7 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
       const first = text(d.cm_name).split(' ')[0] || 'Una CM';
       const label = text(d.label) || 'un gasto';
       return d.created
-        ? { title: `${first} cargó un Uber`, body: `${ars(Number(d.amount_cents) || 0)} · ${label} · ${name}. Revisalo y decidí quién lo absorbe.`, url: detail, tag: `receipt-${coverageId}-${first}` }
+        ? { title: `${first} cargó un Uber`, body: `${ars(Number(d.amount_cents) || 0)} · ${label} · ${name}.`, url: detail, tag: `receipt-${coverageId}-${first}` }
         : { title: `${first} subió un comprobante`, body: `${label} de ${name}.`, url: detail, tag: `receipt-${coverageId}-${first}` };
     }
   }

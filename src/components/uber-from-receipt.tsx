@@ -123,11 +123,6 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
             <option value="coordinadora">Vos</option>
             {cms.map(cm => <option key={cm.id} value={cm.id}>{cm.name} (se lo reintegrás)</option>)}
           </select></label>
-        <label className="block"><span className="label">¿Quién lo cubre?</span>
-          <select className="field" value={draft.absorbedBy} onChange={e => setDraft({ ...draft, absorbedBy: e.target.value as Expense['absorbedBy'] })}>
-            <option value="coordinadora">Vos</option>
-            <option value="salon">El salón (se le cobra aparte)</option>
-          </select></label>
         {error && <p role="alert" className="field-error">{error}</p>}
         <button className="btn btn-primary w-full">Guardar Uber</button>
       </form>
