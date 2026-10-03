@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSeed } from '../src/lib/seed.ts';
-import { allocatePayment, collectionPending, concepts, estimatedProfit, expectedIncome, lastFee, monthly, validateCollection } from '../src/lib/domain.ts';
+import { allocatePayment, collectionPending, concepts, estimatedProfit, expectedIncome, monthly, validateCollection } from '../src/lib/domain.ts';
 
 test('crear cobertura, asignar CM, cargar gasto y liquidar parcialmente', () => {
   const db = createSeed();
@@ -107,12 +107,4 @@ test('tipos de fiesta: lo escrito a mano se agrupa y se suman los números por t
   assert.equal(stats[0].type, 'Sin tipo');
   assert.equal(stats.find(s => s.type === '15 años').count, 2);
   assert.equal(stats.reduce((n, s) => n + s.count, 0), db.coverages.length);
-});
-
-test('al asignar una CM se precarga el último honorario que se le puso', () => {
-  const db = createSeed();
-  const fiesta = (id, startsAt, feeCents) => ({ id, startsAt, assignments: [{ id: `a-${id}`, cmId: 'cm-luli', feeCents, confirmation: 'confirmada' }] });
-  db.coverages = [fiesta('vieja', '2026-08-01T21:00', 3000000), fiesta('nueva', '2026-09-20T21:00', 3500000), fiesta('sin-monto', '2026-09-30T21:00', 0)];
-  assert.equal(lastFee(db, 'cm-luli'), 3500000);
-  assert.equal(lastFee(db, 'cm-mica'), 0);
 });

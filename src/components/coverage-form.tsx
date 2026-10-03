@@ -11,7 +11,7 @@ import { useStore } from './store';
 import { MoneyField } from './ui';
 import { newId } from '@/lib/repository';
 import { ars } from '@/lib/money';
-import { PARTY_TYPES, collected, conceptPaid, expectedIncome, expenseIsPaid, lastFee, partyTypeOf } from '@/lib/domain';
+import { PARTY_TYPES, collected, conceptPaid, expectedIncome, expenseIsPaid, partyTypeOf } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
 import { arriveAtFor, endsAtFor, momentAtFor } from '@/lib/calendar';
@@ -70,7 +70,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
   const addAssignment = () => {
     const cm = db.cms.find(x => !form.assignments.some(a => a.cmId === x.id));
     if (!cm) { setError('No quedan CM disponibles para asignar.'); return; }
-    change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:lastFee(db, cm.id), confirmation:'pendiente' }]);
+    change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:0, confirmation:'pendiente' }]);
   };
   // Cada Uber es de quien fue: una CM (Dafne se lo devuelve) o Dafne si marcó "Voy yo" (gasto suyo, ya pagado).
   // Si fue una sola persona, queda a su nombre.
@@ -126,7 +126,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
       <label className="live-toggle mb-3"><input type="checkbox" checked={form.dafneGoes} onChange={e => change('dafneGoes', e.target.checked)}/><span><span className="block font-bold">Voy yo</span><span className="muted block text-sm">Cubrís vos la fiesta, sola o con otra CM. No se carga honorario: lo que queda es tu ganancia.</span></span></label>
       {!form.assignments.length && <p className="muted text-sm">{form.dafneGoes ? 'Vas sola: no hace falta asignar CM.' : 'Todavía no hay CM asignadas.'}</p>}
       <div className="space-y-3">{form.assignments.map(a => <div key={a.id} className="rounded-xl border border-[var(--line)] bg-[var(--sunken)] p-3"><div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <label><span className="label">CM</span><select className="field" value={a.cmId} onChange={e => { const cm=db.cms.find(c=>c.id===e.target.value); change('assignments', form.assignments.map(x=>x.id===a.id ? {...x,cmId:e.target.value,feeCents:cm ? lastFee(db, cm.id) : 0} : x)); }}>{db.cms.map(cm=><option key={cm.id} value={cm.id}>{cm.name}</option>)}</select></label>
+        <label><span className="label">CM</span><select className="field" value={a.cmId} onChange={e => { change('assignments', form.assignments.map(x=>x.id===a.id ? {...x,cmId:e.target.value,feeCents:0} : x)); }}>{db.cms.map(cm=><option key={cm.id} value={cm.id}>{cm.name}</option>)}</select></label>
         <MoneyField label="Honorario acordado" value={a.feeCents} onChange={v => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,feeCents:v}:x))}/>
         <button type="button" aria-label="Quitar CM" className="btn btn-danger self-end" onClick={() => { if (confirm('¿Quitar esta CM de la cobertura?')) change('assignments',form.assignments.filter(x=>x.id!==a.id)); }}><Trash2 size={18}/></button>
       </div><label className="mt-3 block"><span className="label">Confirmación</span><select className="field" value={a.confirmation} onChange={e => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,confirmation:e.target.value as typeof a.confirmation}:x))}><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="rechazada">Rechazada</option></select></label></div>)}</div>
