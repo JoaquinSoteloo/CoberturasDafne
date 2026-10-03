@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Plus, Trash2, Bell } from 'lucide-react';
+import { SchedulePaste } from './schedule-paste';
+import type { ParsedMoment } from '@/lib/schedule';
 import { useRouter } from 'next/navigation';
 import { useStore } from './store';
 import { MoneyField } from './ui';
@@ -39,7 +41,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     if (form.deliveryStatus === 'entregada' && !form.driveUrl.trim() && !form.deliveredPieces) { setError('Para marcar la entrega, cargá un link de Drive o la cantidad de piezas.'); return; }
     setError('');
     if (form.expenses.some(x=>x.kind==='uber' && x.paymentStatus==='pendiente' && conceptPaid(db,`expense:${x.id}`)>=x.amountCents)) { setError('Este Uber ya fue liquidado. No se puede marcar como pendiente sin ajustar el pago registrado.'); return; }
-    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim()})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
+    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim(),notify:true})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
     // Lo que pasó con la primera fiesta: el acordado se bajó después de registrar el cobro.
     if (initial && expectedIncome(cleaned) < collected(db, cleaned.id) && !confirm(`Ya registraste cobros por ${ars(collected(db, cleaned.id))} y lo acordado queda en ${ars(expectedIncome(cleaned))}. Si el cobro fue por el monto viejo, después corregilo desde Pagos. ¿Guardar igual?`)) return;
     const apply = (db: Db) => {
@@ -66,7 +68,17 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:cm.usualFeeCents, confirmation:'pendiente' }]);
   };
   const addExpense = (kind: Expense['kind']) => change('expenses', [...form.expenses, { id:newId(), label:kind === 'uber' ? 'Uber de ida' : 'Otro gasto', kind, amountCents:0, ...(kind==='uber'?{paymentStatus:'pendiente' as const}:{advancedBy:'coordinadora' as const}), absorbedBy:'coordinadora' }]);
-  const addMoment = (label = '') => change('schedule', [...form.schedule, { id:newId(), at:'', label, notify:false }]);
+  const addMoment = (label = '') => change('schedule', [...form.schedule, { id:newId(), at:'', label, notify:true }]);
+  // Momentos del cronograma pegado. Reemplaza los de la carga anterior y no repite los que ya están.
+  const importMoments = (items: ParsedMoment[], replace: string[]) => {
+    const added = items.map(i => ({ id:newId(), at:momentAtFor(form.startsAt,i.time), label:i.label, notify:true }));
+    setForm(f => {
+      const kept = f.schedule.filter(m => !replace.includes(m.id));
+      const fresh = added.filter(a => !kept.some(m => m.at === a.at && m.label.trim().toLowerCase() === a.label.toLowerCase()));
+      return { ...f, schedule:[...kept.filter(m => m.label.trim() || m.at), ...fresh].sort((a,b)=>(a.at||'~').localeCompare(b.at||'~')) };
+    });
+    return added.map(a => a.id);
+  };
   const setMoment = (id: string, patch: Partial<Coverage['schedule'][number]>) => change('schedule', form.schedule.map(m => m.id === id ? { ...m, ...patch } : m));
   // Borrar la fiesta entera. Con cobros o pagos registrados no se puede: primero se anulan.
   const deleteCoverage = () => {
@@ -106,11 +118,12 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
         <button type="button" aria-label="Quitar CM" className="btn btn-danger self-end" onClick={() => { if (confirm('¿Quitar esta CM de la cobertura?')) change('assignments',form.assignments.filter(x=>x.id!==a.id)); }}><Trash2 size={18}/></button>
       </div><label className="mt-3 block"><span className="label">Confirmación</span><select className="field" value={a.confirmation} onChange={e => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,confirmation:e.target.value as typeof a.confirmation}:x))}><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="rechazada">Rechazada</option></select></label></div>)}</div>
     </section>}
-    {(!section||section==='schedule')&&<section><h3 className="section-title mb-1">Cronograma de la noche</h3><p className="muted mb-3 text-sm">Las CM lo ven ordenado en su fecha. Con la campanita, les llega un aviso 10 minutos antes.</p>
+    {(!section||section==='schedule')&&<section><h3 className="section-title mb-1">Cronograma de la noche</h3><p className="muted mb-3 text-sm">Las CM lo ven ordenado en su fecha y les llega un aviso 10 minutos antes de cada momento.</p>
+      <div className="mb-4"><SchedulePaste open={!form.schedule.length} onImport={importMoments}/></div>
       <div className="space-y-2">{form.schedule.map(m=><div key={m.id} className="schedule-row">
         <input className="field schedule-time" type="time" aria-label={`Hora de ${m.label||'este momento'}`} value={m.at.slice(11,16)} onChange={e=>setMoment(m.id,{at:momentAtFor(form.startsAt,e.target.value)})} required/>
         <input className="field min-w-0 flex-1" aria-label="Momento" placeholder="Ej. Vals" value={m.label} onChange={e=>setMoment(m.id,{label:e.target.value})} required/>
-        <label className={`schedule-notify ${m.notify?'is-on':''}`} title="Avisar a las CM 10 minutos antes"><input type="checkbox" className="sr-only" checked={m.notify} onChange={e=>setMoment(m.id,{notify:e.target.checked})}/><Bell size={17} aria-hidden="true"/><span className="sr-only">Avisar 10 minutos antes</span></label>
+        <span className="schedule-notify is-on" title="Les llega un aviso 10 minutos antes"><Bell size={17} aria-hidden="true"/><span className="sr-only">Con aviso 10 minutos antes</span></span>
         <button type="button" aria-label={`Quitar ${m.label||'momento'}`} className="btn btn-quiet !px-2" onClick={()=>change('schedule',form.schedule.filter(x=>x.id!==m.id))}><Trash2 size={17}/></button>
       </div>)}</div>
       <div className="mt-3 flex flex-wrap gap-2">{MOMENTS.filter(label=>!form.schedule.some(m=>m.label.trim().toLowerCase()===label.toLowerCase())).map(label=><button key={label} type="button" className="btn btn-secondary btn-small" onClick={()=>addMoment(label)}><Plus size={15}/> {label}</button>)}<button type="button" className="btn btn-quiet btn-small" onClick={()=>addMoment()}><Plus size={15}/> Otro</button></div>
