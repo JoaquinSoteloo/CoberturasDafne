@@ -158,7 +158,10 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     if (events.length) document.getElementById(`dia-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const moveMonth = (delta: number) => { setMonth(shiftMonth(shownMonth, delta)); setSelectedDay(null); };
-  const pending = home.concepts.reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
+  // Lo que le deben, separado: honorarios de las coberturas y reintegros de Ubers.
+  const owedOf = (kind: Concept['kind']) => home.concepts.filter(c => c.kind === kind).reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
+  const owedFees = owedOf('fee'), owedUbers = owedOf('expense');
+  const pending = owedFees + owedUbers;
 
   return <>{header}<Main className="cm-page space-y-6">
     {!preview && <><InstallHint/><PushPrompt forCm/></>}
@@ -200,12 +203,14 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
         <div className="flex items-center justify-between gap-2"><h2 className="section-title">{cap(label)}</h2><div className="flex gap-1"><button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setPayMonth(shiftMonth(m, -1))}><ChevronLeft size={18}/></button><button className="btn btn-quiet !px-2" aria-label="Mes siguiente" onClick={() => setPayMonth(shiftMonth(m, 1))}><ChevronRight size={18}/></button></div></div>
         <dl className="cm-earnings-grid">
           <div><dt>Ganaste</dt><dd>{ars(e.monthCents)}</dd><dd className="muted text-sm">{e.parties === 0 ? 'Sin fiestas' : e.parties === 1 ? '1 fiesta' : `${e.parties} fiestas`}</dd></div>
-          <div><dt>Te deben</dt><dd className={pending > 0 ? 'text-[var(--warn-text)]' : ''}>{ars(pending)}</dd><dd className="muted text-sm">De todas tus fechas</dd></div>
+          <div><dt>Te deben</dt><dd className={pending > 0 ? 'text-[var(--warn-text)]' : ''}>{ars(pending)}</dd><dd className="muted text-sm">{pending > 0 ? 'Abajo, el detalle' : 'Estás al día'}</dd></div>
         </dl>
         <p className="muted text-sm">En {m.slice(0, 4)} llevás {ars(e.yearCents)} en honorarios. Los reintegros de Uber no cuentan como ganancia.</p>
       </div>; })()}
       <div className="ledger-card card">
-        <div className="ledger-head"><div><h2 className="section-title">Te falta cobrar</h2><p className="ledger-total">{ars(pending)}</p></div></div>
+        <div className="ledger-head"><div className="w-full"><h2 className="section-title">Te falta cobrar</h2>
+          <dl className="owed-split"><div><dt>Coberturas</dt><dd>{ars(owedFees)}</dd></div><div><dt>Ubers</dt><dd>{ars(owedUbers)}</dd></div><div className="owed-total"><dt>Total</dt><dd>{ars(pending)}</dd></div></dl>
+        </div></div>
         {home.concepts.length ? <ul className="ledger">{home.concepts.map(c => { const day = shortDay(c.starts_at); const owed = c.amount_cents - c.paid_cents; return <li key={`${c.coverage_id}-${c.label}`} className="ledger-row">
           <span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
           <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span>{c.kind === 'expense' && tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at }) && <span className="block text-sm">{tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at })}</span>}<Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>

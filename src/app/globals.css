@@ -238,6 +238,13 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .cm-earnings-grid dt{font-size:13px;font-weight:700;color:var(--muted)}
 .cm-earnings-grid dd{margin:0}
 .cm-earnings-grid dd:nth-of-type(1){font-family:var(--display);font-weight:600;font-size:clamp(17px,5vw,22px);white-space:nowrap;letter-spacing:-.03em;line-height:1.25;margin-top:2px}
+.owed-split{display:grid;gap:6px;margin:10px 0 0;max-width:340px}
+.owed-split>div{display:flex;justify-content:space-between;gap:12px;font-size:15px}
+.owed-split dt{color:var(--muted);font-weight:600}
+.owed-split dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.owed-split .owed-total{padding-top:6px;margin-top:2px;border-top:1.5px dashed var(--line)}
+.owed-split .owed-total dt{color:var(--ink);font-weight:800}
+.owed-split .owed-total dd{font-family:var(--display);font-size:clamp(24px,6vw,30px);letter-spacing:-.03em;line-height:1.1}
 .ledger-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding:22px 20px 18px;border-bottom:1.5px dashed var(--line)}
 .ledger-total{font-family:var(--display);font-weight:600;font-size:clamp(28px,4vw,36px);letter-spacing:-.04em;line-height:1.15;margin-top:4px}
 .ledger{list-style:none;margin:0;padding:0}
