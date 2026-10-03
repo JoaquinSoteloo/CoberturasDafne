@@ -44,6 +44,12 @@ export async function removeReceipt(supabase: SupabaseClient, expenseId: string,
   await supabase.storage.from(BUCKET).remove([path]);
 }
 
+/** La CM borra un Uber que cargó ella (y no está pago). El archivo lo limpia después el despachador. */
+export async function deleteCmUber(supabase: SupabaseClient, expenseId: string) {
+  const { error } = await supabase.rpc('cm_delete_uber', { p_expense: expenseId });
+  if (error) throw new Error(error.message || 'No se pudo borrar el Uber.');
+}
+
 /** Abre el comprobante con un link que vence a los 5 minutos. */
 export async function openReceipt(supabase: SupabaseClient, path: string) {
   // La ventana se abre antes de esperar el link: si no, el celular la bloquea como ventana emergente.

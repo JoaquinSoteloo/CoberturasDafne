@@ -9,7 +9,7 @@ import { dateWarning, guessDirection, tripTimestamp, type ReceiptData } from '@/
 import { MoneyField } from './ui';
 import { ReceiptControl } from './receipt-control';
 
-type Uber = { expense_id: string | null; label: string; amount_cents: number; paid_cents: number; receipt_path: string | null };
+type Uber = { expense_id: string | null; label: string; amount_cents: number; paid_cents: number; receipt_path: string | null; loaded_by_cm?: boolean | null };
 type Event = { id: string; startsAt: string; endsAt?: string | null; address?: string };
 
 /**
@@ -81,8 +81,8 @@ export function CmUbers({ event, ubers, canAdd, preview, onChange }: {
   return <div className="cm-ubers">
     <p className="text-sm font-bold">Tus Ubers de esta fiesta</p>
     {ubers.length > 0 && <ul className="mt-2 space-y-2">{ubers.map(u => { const owed = u.amount_cents - u.paid_cents; return <li key={u.expense_id ?? u.label} className="cm-uber-row">
-      <span className="min-w-0 flex-1"><span className="block font-semibold">{u.label}</span><span className="muted text-sm">{ars(u.amount_cents)} · {owed > 0 ? `te deben ${ars(owed)}` : 'pagado'}</span></span>
-      {u.expense_id && <ReceiptControl expenseId={u.expense_id} path={u.receipt_path} onChange={() => onChange()} disabledReason={preview ? 'Solo para mirar.' : undefined}/>}
+      <span className="min-w-0 flex-1"><span className="block font-semibold">{u.label.replace(/^Reintegro: /, '')}</span><span className="muted text-sm">{ars(u.amount_cents)} · {owed > 0 ? `te deben ${ars(owed)}` : 'pagado'}</span></span>
+      {u.expense_id && <ReceiptControl expenseId={u.expense_id} path={u.receipt_path} onChange={() => onChange()} disabledReason={preview ? 'Solo para mirar.' : undefined} cm={{ paid: u.paid_cents > 0, loadedByCm: !!u.loaded_by_cm }}/>}
     </li>; })}</ul>}
     {canAdd && !open && <button type="button" className="btn btn-secondary mt-3" disabled={preview} onClick={() => setOpen(true)}><Car size={17}/> Cargar un Uber</button>}
     {canAdd && open && <form className="cm-uber-form mt-3 space-y-3" onSubmit={e => void save(e)}>

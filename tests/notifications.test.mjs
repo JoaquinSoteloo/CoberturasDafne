@@ -111,3 +111,9 @@ test('la CM carga un Uber o sube un comprobante: aviso a Dafne', () => {
   assert.equal(attached.title, 'Isis subió un comprobante');
   assert.equal(attached.body, 'Uber de vuelta de Cumple de Martina.');
 });
+
+test('la CM borra un Uber que había cargado: aviso a Dafne', () => {
+  const m = buildMessage({ kind: 'receipt', data: { ...coverage, cm_name: 'Isis Villalba', label: 'Uber de ida', amount_cents: 1350000, removed: true }, for_coordinator: true });
+  assert.equal(m.title, 'Isis borró un Uber');
+  assert.match(m.body, /^\$\s13\.500 · Uber de ida · Cumple de Martina\.$/);
+});

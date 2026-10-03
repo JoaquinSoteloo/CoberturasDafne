@@ -31,7 +31,7 @@ type CmDate = {
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; schedule?: Moment[]; team: Mate[];
 };
-type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
+type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; loaded_by_cm?: boolean | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
 type Payment = { id: string; date: string; amount_cents: number };
 type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
 
@@ -209,7 +209,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
           <span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
           <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span>{c.kind === 'expense' && tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at }) && <span className="block text-sm">{tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at })}</span>}<Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>
           <span className="ledger-amount">{owed > 0 ? ars(owed) : <span className="badge badge-success">Pagado</span>}</span>
-          {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()} disabledReason={preview ? 'Solo para mirar.' : undefined}/></span>}
+          {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()} disabledReason={preview ? 'Solo para mirar.' : undefined} cm={{ paid: c.paid_cents > 0, loadedByCm: !!c.loaded_by_cm }}/></span>}
         </li>; })}</ul> : <p className="muted px-5 pb-5">Todavía no tenés honorarios cargados.</p>}
       </div>
       <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
