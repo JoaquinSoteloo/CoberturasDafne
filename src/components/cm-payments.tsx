@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, FileCheck2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, FileCheck2 } from 'lucide-react';
 import { dayKey, shiftMonth } from '@/lib/calendar';
 import { cmSummary } from '@/lib/cm-summary';
 import { toast } from 'sonner';
@@ -97,11 +97,16 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
           const lines = items.filter(c => c.coverage_id === id).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'fee' ? -1 : 1));
           const first = lines[0]; const day = shortDay(first.starts_at);
           const t = sum(lines, c => c.amount_cents), p = sum(lines, c => Math.min(c.paid_cents, c.amount_cents));
-          return <article key={id} className="card pay-party">
-            <div className="flex items-center gap-3"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block truncate font-bold">{first.coverage_name}</span><span className="muted text-sm">{p >= t ? 'Cobrado completo' : `Cobraste ${ars(p)} de ${ars(t)}`}</span></span></div>
-            <Meter done={p} total={t} label={`Cobraste ${ars(p)} de ${ars(t)}`}/>
-            <ul className="space-y-2">{lines.map(c => <Line key={`${c.kind}-${c.expense_id ?? c.coverage_id}`} c={c} preview={preview} onChange={onChange}/>)}</ul>
-          </article>;
+          // Cerrada: la fiesta, su barra y cuánto falta. Al tocarla se ve el detalle con los comprobantes.
+          return <details key={id} className="card pay-party">
+            <summary>
+              <span className="flex items-center gap-3"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block truncate font-bold">{first.coverage_name}</span></span>
+                {p >= t ? <span className="badge badge-success">Cobrado</span> : <span className="badge badge-warn">Te falta {ars(t - p)}</span>}
+                <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></span>
+              <span className="grid gap-1"><Meter done={p} total={t} label={`Cobraste ${ars(p)} de ${ars(t)}`}/><span className="muted text-sm">Cobraste {ars(p)} de {ars(t)} · tocá para ver el detalle</span></span>
+            </summary>
+            <ul className="mt-3 space-y-2">{lines.map(c => <Line key={`${c.kind}-${c.expense_id ?? c.coverage_id}`} c={c} preview={preview} onChange={onChange}/>)}</ul>
+          </details>;
         })}</div>
       </section>;
     })}

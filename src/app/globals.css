@@ -256,7 +256,12 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .pay-month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .pay-month{display:grid;gap:12px}
 .pay-month-head{display:grid;gap:6px}
-.pay-party{padding:16px;display:grid;gap:12px}
+.pay-party{padding:16px}
+.pay-party summary{display:grid;gap:12px;cursor:pointer;list-style:none}
+.pay-party summary::-webkit-details-marker{display:none}
+.pay-party-chevron{color:var(--muted);transition:transform .2s}
+.pay-party[open] .pay-party-chevron{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.pay-party-chevron{transition:none}}
 .pay-line{padding:10px 12px;border-radius:12px;background:var(--sunken);display:grid;gap:8px}
 .pay-line .badge{margin-top:2px}
 .pay-docs{display:grid;gap:8px;padding-top:8px;border-top:1.5px dashed var(--line)}
