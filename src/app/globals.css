@@ -205,6 +205,12 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 6px;max-width:320px}
 .meter span{display:block;height:100%;border-radius:6px;background:var(--ok)}
 .ledger-card{overflow:hidden}
+.cm-earnings{padding:18px 20px;display:grid;gap:12px}
+.cm-earnings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}
+.cm-earnings-grid>div{min-width:0;padding:12px 12px;border-radius:14px;background:var(--sunken)}
+.cm-earnings-grid dt{font-size:13px;font-weight:700;color:var(--muted)}
+.cm-earnings-grid dd{margin:0}
+.cm-earnings-grid dd:nth-of-type(1){font-family:var(--display);font-weight:600;font-size:clamp(17px,5vw,22px);white-space:nowrap;letter-spacing:-.03em;line-height:1.25;margin-top:2px}
 .ledger-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding:22px 20px 18px;border-bottom:1.5px dashed var(--line)}
 .ledger-total{font-family:var(--display);font-weight:600;font-size:clamp(28px,4vw,36px);letter-spacing:-.04em;line-height:1.15;margin-top:4px}
 .ledger{list-style:none;margin:0;padding:0}

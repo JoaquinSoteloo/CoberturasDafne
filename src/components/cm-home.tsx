@@ -14,6 +14,7 @@ import { MapPreview } from './map-preview';
 import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
 import { tripSummary } from '@/lib/trip';
+import { cmEarnings } from '@/lib/cm-earnings';
 import { InstallHint } from './install-hint';
 import { CalendarSubscribe } from './calendar-subscribe';
 
@@ -63,6 +64,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const [openId, setOpenId] = useState<string | null>(null);
   const [month, setMonth] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [payMonth, setPayMonth] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = previewCmId ? await supabaseBrowser().rpc('cm_home_as', { p_cm: previewCmId }) : await supabaseBrowser().rpc('cm_home');
@@ -181,6 +183,14 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
         ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
         : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
     </section> : <section className="space-y-7" aria-label="Mis pagos">
+      {(() => { const m = payMonth ?? now.slice(0, 7); const e = cmEarnings(home.concepts, m); const label = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(`${m}-01T12:00`)); return <div className="card cm-earnings">
+        <div className="flex items-center justify-between gap-2"><h2 className="section-title">{cap(label)}</h2><div className="flex gap-1"><button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setPayMonth(shiftMonth(m, -1))}><ChevronLeft size={18}/></button><button className="btn btn-quiet !px-2" aria-label="Mes siguiente" onClick={() => setPayMonth(shiftMonth(m, 1))}><ChevronRight size={18}/></button></div></div>
+        <dl className="cm-earnings-grid">
+          <div><dt>Ganaste</dt><dd>{ars(e.monthCents)}</dd><dd className="muted text-sm">{e.parties === 0 ? 'Sin fiestas' : e.parties === 1 ? '1 fiesta' : `${e.parties} fiestas`}</dd></div>
+          <div><dt>Te deben</dt><dd className={pending > 0 ? 'text-[var(--warn-text)]' : ''}>{ars(pending)}</dd><dd className="muted text-sm">De todas tus fechas</dd></div>
+        </dl>
+        <p className="muted text-sm">En {m.slice(0, 4)} llevás {ars(e.yearCents)} en honorarios. Los reintegros de Uber no cuentan como ganancia.</p>
+      </div>; })()}
       <div className="ledger-card card">
         <div className="ledger-head"><div><h2 className="section-title">Te falta cobrar</h2><p className="ledger-total">{ars(pending)}</p></div></div>
         {home.concepts.length ? <ul className="ledger">{home.concepts.map(c => { const day = shortDay(c.starts_at); const owed = c.amount_cents - c.paid_cents; return <li key={`${c.coverage_id}-${c.label}`} className="ledger-row">
