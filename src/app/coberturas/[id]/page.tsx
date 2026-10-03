@@ -9,6 +9,8 @@ import { CoverageForm } from '@/components/coverage-form';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
+import { StageButton } from '@/components/stage-button';
+import { stageOf, stageSummary, type Stage } from '@/lib/content';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { tripSummary } from '@/lib/trip';
 import { MapPreview } from '@/components/map-preview';
@@ -36,16 +38,15 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
       db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:reinsert(row.expenses,expense,index)}:row)}));
   };
   const confirmCm=(assignmentId:string)=>{update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,assignments:row.assignments.map(x=>x.id===assignmentId?{...x,confirmation:'confirmada'}:x)}:row)}));flash();toast.success('CM confirmada')};
-  const toggleItem=(itemId:string,done:boolean)=>{
-    const willComplete=done&&c.checklist.every(item=>item.id===itemId||item.done);
-    update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,checklist:row.checklist.map(item=>item.id===itemId?{...item,done}:item)}:row)}));
-    if(willComplete){flash();toast.success('Contenido completo')}
+  const setStage=(itemId:string,stage:Stage)=>{
+    const willComplete=stage==='drive'&&c.checklist.every(item=>item.id===itemId||stageOf(item)==='drive');
+    update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,checklist:row.checklist.map(item=>item.id===itemId?{...item,stage,done:stage==='drive'}:item)}:row)}));
+    if(willComplete){flash();toast.success('Todo el contenido está en el Drive')}
   };
   const pendingConcepts=concepts(db).filter(x=>x.coverageId===id);
   const toSettle=pendingConcepts.reduce((s,x)=>s+x.pendingCents,0);
   const income=expectedIncome(c); const got=collected(db,c.id); const owed=collectionPending(db,c); const over=overCollected(db,c);
   const unconfirmed=c.assignments.filter(a=>a.confirmation!=='confirmada').length;
-  const doneItems=c.checklist.filter(x=>x.done).length;
   const steps={
     before:(c.assignments.length>0||c.dafneGoes)&&unconfirmed===0,
     night:c.eventStatus==='realizado',
@@ -75,10 +76,10 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           </div>
         </li>
         <li className={`step ${steps.night?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">La noche</h2><p className="step-note">{[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?`${doneItems} de ${c.checklist.length} piezas listas`:c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. ')}</p></div>
+          <div className="step-head"><h2 className="step-title">La noche</h2><p className="step-note">{[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?stageSummary(c.checklist):c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. ')}</p></div>
           <div className="step-body">
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
-            {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><label className="checklist-action"><input type="checkbox" checked={x.done} onChange={e=>toggleItem(x.id,e.target.checked)}/><span className={x.done?'completed-task':''}>{x.text}</span></label></li>)}</ul></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
+            {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><StageButton stage={stageOf(x)} text={x.text} onChange={s=>setStage(x.id,s)}/></li>)}</ul><p className="muted mt-2 text-xs">Tocá para marcar: ✓ enviado por WhatsApp · ✓✓ subido al Drive.</p></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
             <div className="sub-head mt-6"><h3>Cronograma</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('schedule')}><Pencil size={15}/> {c.schedule.length?'Editar':'Armar'} cronograma</button></div>
             {c.schedule.length?<ol className="schedule-list">{[...c.schedule].sort((a,b)=>a.at.localeCompare(b.at)).map(m=><li key={m.id}><time>{m.at.slice(11,16)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify&&<span className="schedule-bell" title="Las CM reciben un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Con aviso</span></span>}</li>)}</ol>:<p className="muted text-sm">Los momentos de la noche con su hora: entrada, vals, torta. Las CM los ven en su fecha.</p>}
             <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Cargar gastos</button></div>

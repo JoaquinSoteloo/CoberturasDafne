@@ -50,7 +50,7 @@ export function toRows(db: Db): Rows {
       absorbed_by: e.absorbedBy, position,
       trip_from: e.tripFrom || null, trip_to: e.tripTo || null, trip_started_at: e.tripStartedAt || null, trip_ended_at: e.tripEndedAt || null
     }))),
-    checklist_items: db.coverages.flatMap(c => c.checklist.map((x, position) => ({ id: x.id, coverage_id: c.id, text: x.text, done: x.done, position }))),
+    checklist_items: db.coverages.flatMap(c => c.checklist.map((x, position) => ({ id: x.id, coverage_id: c.id, text: x.text, done: x.done, stage: x.stage ?? (x.done ? 'drive' : 'pendiente'), position }))),
     schedule_items: db.coverages.flatMap(c => c.schedule.map((m, position) => ({ id: m.id, coverage_id: c.id, at: m.at, label: m.label, notify: m.notify, position }))),
     collections: db.collections.map(p => ({ id: p.id, coverage_id: p.coverageId, date: p.date, amount_cents: p.amountCents, notes: p.notes })),
     cm_payments: db.cmPayments.map(p => ({
@@ -98,7 +98,7 @@ export function fromRows(rows: Rows): Db {
         if (e.trip_ended_at) expense.tripEndedAt = minutes(e.trip_ended_at);
         return expense;
       }),
-      checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) })),
+      checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done), ...(x.stage === 'whatsapp' ? { stage: 'whatsapp' as const } : {}) })),
       schedule: (schedule.get(c.id) ?? []).map(m => ({ id: m.id, at: minutes(m.at), label: str(m.label), notify: Boolean(m.notify) }))
     })),
     collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes), ...(p.receipt_path ? { receiptPath: str(p.receipt_path) } : {}) })),

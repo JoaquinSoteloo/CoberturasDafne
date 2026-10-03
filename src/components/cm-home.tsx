@@ -1,28 +1,27 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock, FileCheck2, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
+import { CalendarDays, Clock, FolderUp, Radio, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
 import { calendarDays, shiftMonth } from '@/lib/calendar';
-import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
+import { StoryBars, cap, flash, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
-import { ReceiptControl } from './receipt-control';
 import { CmUbers } from './cm-ubers';
-import { openReceipt } from '@/lib/receipts';
+import { CmPayments, type MoneyConcept } from './cm-payments';
+import { StageButton } from './stage-button';
+import { STAGE_LABEL, stageOf, type Stage } from '@/lib/content';
 import { MapPreview } from './map-preview';
 import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
-import { tripSummary } from '@/lib/trip';
-import { cmEarnings } from '@/lib/cm-earnings';
 import { LiveNow, cameFromShortcut } from './live-now';
 import { liveEvents } from '@/lib/live';
 import { InstallHint } from './install-hint';
 import { CalendarSubscribe } from './calendar-subscribe';
 
-type Item = { id: string; text: string; done: boolean };
+type Item = { id: string; text: string; done: boolean; stage?: Stage };
 type Mate = { name: string; phone: string; confirmation: string };
 type Moment = { id: string; at: string; label: string; notify: boolean };
 type CmDate = {
@@ -32,7 +31,7 @@ type CmDate = {
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; schedule?: Moment[]; team: Mate[];
 };
-type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; loaded_by_cm?: boolean | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
+type Concept = MoneyConcept;
 type Payment = { id: string; date: string; amount_cents: number; receipt_path?: string | null };
 type Home = { name: string; dates: CmDate[]; concepts: Concept[]; payments: Payment[] };
 
@@ -68,7 +67,6 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const [openId, setOpenId] = useState<string | null>(null);
   const [month, setMonth] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [payMonth, setPayMonth] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = previewCmId ? await supabaseBrowser().rpc('cm_home_as', { p_cm: previewCmId }) : await supabaseBrowser().rpc('cm_home');
@@ -116,12 +114,12 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const answer = (d: CmDate, value: 'confirmada' | 'rechazada') => act(d.assignment_id,
     () => supabaseBrowser().rpc('cm_set_confirmation', { p_assignment: d.assignment_id, p_value: value }),
     value === 'confirmada' ? 'Fecha confirmada' : 'Le avisamos a Dafne que no podés', value === 'confirmada');
-  const tick = (d: CmDate, item: Item, checked: boolean) => {
+  const tick = (d: CmDate, item: Item, stage: Stage) => {
     if (preview) return Promise.resolve();
-    const completes = checked && d.checklist.every(x => x.id === item.id || x.done);
-    // Se ve tildado al instante; si falla, la recarga lo vuelve atrás.
-    setHome(h => h && { ...h, dates: h.dates.map(x => x.id === d.id ? { ...x, checklist: x.checklist.map(i => i.id === item.id ? { ...i, done: checked } : i) } : x) });
-    return act(item.id, () => supabaseBrowser().rpc('cm_set_checklist', { p_item: item.id, p_done: checked }), completes ? 'Contenido completo' : checked ? 'Tildado' : 'Destildado', completes);
+    const completes = stage === 'drive' && d.checklist.every(x => x.id === item.id || stageOf(x) === 'drive');
+    // Se ve marcado al instante; si falla, la recarga lo vuelve atrás.
+    setHome(h => h && { ...h, dates: h.dates.map(x => x.id === d.id ? { ...x, checklist: x.checklist.map(i => i.id === item.id ? { ...i, stage, done: stage === 'drive' } : i) } : x) });
+    return act(item.id, () => supabaseBrowser().rpc('cm_set_stage', { p_item: item.id, p_stage: stage }), completes ? 'Todo el contenido está en el Drive' : STAGE_LABEL[stage], completes);
   };
 
   const header = preview
@@ -158,10 +156,6 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     if (events.length) document.getElementById(`dia-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
   const moveMonth = (delta: number) => { setMonth(shiftMonth(shownMonth, delta)); setSelectedDay(null); };
-  // Lo que le deben, separado: honorarios de las coberturas y reintegros de Ubers.
-  const owedOf = (kind: Concept['kind']) => home.concepts.filter(c => c.kind === kind).reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
-  const owedFees = owedOf('fee'), owedUbers = owedOf('expense');
-  const pending = owedFees + owedUbers;
 
   return <>{header}<Main className="cm-page space-y-6">
     {!preview && <><InstallHint/><PushPrompt forCm/></>}
@@ -198,28 +192,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
       {monthDates.length
         ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
         : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
-    </section> : <section className="space-y-7" aria-label="Mis pagos">
-      {(() => { const m = payMonth ?? now.slice(0, 7); const e = cmEarnings(home.concepts, m); const label = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(`${m}-01T12:00`)); return <div className="card cm-earnings">
-        <div className="flex items-center justify-between gap-2"><h2 className="section-title">{cap(label)}</h2><div className="flex gap-1"><button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setPayMonth(shiftMonth(m, -1))}><ChevronLeft size={18}/></button><button className="btn btn-quiet !px-2" aria-label="Mes siguiente" onClick={() => setPayMonth(shiftMonth(m, 1))}><ChevronRight size={18}/></button></div></div>
-        <dl className="cm-earnings-grid">
-          <div><dt>Ganaste</dt><dd>{ars(e.monthCents)}</dd><dd className="muted text-sm">{e.parties === 0 ? 'Sin fiestas' : e.parties === 1 ? '1 fiesta' : `${e.parties} fiestas`}</dd></div>
-          <div><dt>Te deben</dt><dd className={pending > 0 ? 'text-[var(--warn-text)]' : ''}>{ars(pending)}</dd><dd className="muted text-sm">{pending > 0 ? 'Abajo, el detalle' : 'Estás al día'}</dd></div>
-        </dl>
-        <p className="muted text-sm">En {m.slice(0, 4)} llevás {ars(e.yearCents)} en honorarios. Los reintegros de Uber no cuentan como ganancia.</p>
-      </div>; })()}
-      <div className="ledger-card card">
-        <div className="ledger-head"><div className="w-full"><h2 className="section-title">Te falta cobrar</h2>
-          <dl className="owed-split"><div><dt>Coberturas</dt><dd>{ars(owedFees)}</dd></div><div><dt>Ubers</dt><dd>{ars(owedUbers)}</dd></div><div className="owed-total"><dt>Total</dt><dd>{ars(pending)}</dd></div></dl>
-        </div></div>
-        {home.concepts.length ? <ul className="ledger">{home.concepts.map(c => { const day = shortDay(c.starts_at); const owed = c.amount_cents - c.paid_cents; return <li key={`${c.coverage_id}-${c.label}`} className="ledger-row">
-          <span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
-          <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span>{c.kind === 'expense' && tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at }) && <span className="block text-sm">{tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at })}</span>}<Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>
-          <span className="ledger-amount">{owed > 0 ? ars(owed) : <span className="badge badge-success">Pagado</span>}</span>
-          {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()} disabledReason={preview ? 'Solo para mirar.' : undefined} cm={{ paid: c.paid_cents > 0, loadedByCm: !!c.loaded_by_cm }}/></span>}
-        </li>; })}</ul> : <p className="muted px-5 pb-5">Todavía no tenés honorarios cargados.</p>}
-      </div>
-      <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">Pago de Dafne</span>{p.receipt_path && <PaymentReceipt path={p.receipt_path}/>}</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
-    </section>}
+    </section> : <CmPayments concepts={home.concepts} preview={preview} onChange={() => void load()}/>}
 
     {!preview && <><CalendarSubscribe who="cm"/><ChangePassword/></>}
   </Main></>;
@@ -240,7 +213,7 @@ function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
 function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }: {
   d: CmDate; now: string; busy: string; preview?: boolean; ubers: Concept[]; reload: () => void;
   answer: (d: CmDate, value: 'confirmada' | 'rechazada') => Promise<void>;
-  tick: (d: CmDate, item: Item, checked: boolean) => Promise<void>;
+  tick: (d: CmDate, item: Item, stage: Stage) => Promise<void>;
 }) {
   return <article className="cm-date" aria-label={d.name}>
     {/* El mapa va afuera de la entrada: en Safari del iPhone, un mapa embebido dentro de algo con máscara (las muescas) no se dibuja. */}
@@ -268,20 +241,9 @@ function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }
       {d.live_posting && d.event_status !== 'cancelado' && <p className="live-note"><Radio size={18} aria-hidden="true"/><span><strong>Esta fiesta sale en vivo.</strong> A medida que tengas videos editados, se suben a la cuenta de IG durante la fiesta.</span></p>}
       {/^https:\/\//i.test(d.drive_url ?? '') && d.confirmation !== 'rechazada' && d.event_status !== 'cancelado' && <a className="drive-link" href={d.drive_url} target="_blank" rel="noopener noreferrer"><FolderUp size={20} aria-hidden="true"/><span className="min-w-0 flex-1"><span className="block font-bold">Subí el contenido acá</span><span className="block truncate text-sm opacity-80">Carpeta de Drive de esta fiesta</span></span></a>}
       <CmUbers event={{ id: d.id, startsAt: d.starts_at, endsAt: d.ends_at, address: d.address }} ubers={ubers} canAdd={d.confirmation === 'confirmada' && d.event_status !== 'cancelado'} preview={preview} onChange={reload}/>
-      {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
+      {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><StageButton stage={stageOf(item)} text={item.text} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={s => void tick(d, item, s)}/></li>)}</ul><p className="muted mt-2 text-xs">Tocá para marcar: ✓ lo mandaste por WhatsApp · ✓✓ lo subiste al Drive.</p></div>}
     </div>
   </article>;
-}
-
-/** Ver la transferencia que subió Dafne (link que vence a los 5 minutos). */
-function PaymentReceipt({ path }: { path: string }) {
-  const [busy, setBusy] = useState(false);
-  const open = async () => {
-    setBusy(true);
-    try { await openReceipt(supabaseBrowser(), path); } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo abrir el comprobante.'); }
-    finally { setBusy(false); }
-  };
-  return <button type="button" className="text-link mt-1 inline-flex items-center gap-1 text-sm" disabled={busy} onClick={() => void open()}><FileCheck2 size={14}/>{busy ? 'Abriendo…' : 'Ver comprobante'}</button>;
 }
 
 function ChangePassword() {

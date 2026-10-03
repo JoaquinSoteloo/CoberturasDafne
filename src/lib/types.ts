@@ -15,7 +15,7 @@ export type Expense = {
   /** Datos del viaje (Ubers). Horarios en hora local: "AAAA-MM-DDTHH:MM". */
   tripFrom?: string; tripTo?: string; tripStartedAt?: string; tripEndedAt?: string;
 };
-export type ChecklistItem = { id: string; text: string; done: boolean };
+export type ChecklistItem = { id: string; text: string; done: boolean; /** ✓ WhatsApp o ✓✓ Drive. Sin dato: tildado = Drive. */ stage?: 'pendiente' | 'whatsapp' | 'drive' };
 /** Un momento de la noche (entrada, vals, torta…). `at` en hora local: "AAAA-MM-DDTHH:MM". Con `notify`, las CM reciben un aviso 10 minutos antes. */
 export type Moment = { id: string; at: string; label: string; notify: boolean };
 export type Coverage = {

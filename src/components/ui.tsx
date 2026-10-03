@@ -1,5 +1,6 @@
 'use client';
 import { useId, useRef, useState, type ReactNode } from 'react';
+import { stageOf, stageSummary, type Stage } from '@/lib/content';
 import { formatAmount, parseAmount } from '@/lib/money';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
@@ -28,9 +29,10 @@ export function MoneyField({label,value,onChange,hint,placeholder}:{label:string
     {invalid?<span id={id} role="alert" className="field-error block">Revisá el monto: usá números, con coma para los centavos.</span>:hint&&<span id={id} className="muted mt-2 block text-sm">{hint}</span>}
   </label>;
 }
-export function StoryBars({items,label=true}:{items:{id:string;done:boolean}[];label?:boolean}){
-  if(!items.length)return null;const done=items.filter(x=>x.done).length;
-  return <div className="story" role="img" aria-label={`Contenido: ${done} de ${items.length} piezas listas`}><div className="story-bars">{items.map(x=><span key={x.id} className={x.done?'done':''}/>)}</div>{label&&<span className="story-count">{done} de {items.length} listas</span>}</div>;
+/** Avance del contenido: claro lo enviado por WhatsApp, fuerte lo subido al Drive. */
+export function StoryBars({items,label=true}:{items:{id:string;done:boolean;stage?:Stage}[];label?:boolean}){
+  if(!items.length)return null;const summary=stageSummary(items);
+  return <div className="story" role="img" aria-label={`Contenido: ${summary}`}><div className="story-bars">{items.map(x=>{const s=stageOf(x);return <span key={x.id} className={s==='drive'?'done':s==='whatsapp'?'half':''}/>})}</div>{label&&<span className="story-count">{summary}</span>}</div>;
 }
 export function untilLabel(iso:string){
   const a=new Date();a.setHours(0,0,0,0);const b=new Date(iso.slice(0,10)+'T00:00');const d=Math.round((b.getTime()-a.getTime())/864e5);

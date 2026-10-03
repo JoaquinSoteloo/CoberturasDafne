@@ -132,6 +132,15 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .story-bars{display:flex;gap:4px;flex:1;max-width:280px}
 .story-bars span{flex:1;height:4px;border-radius:4px;background:var(--line)}
 .story-bars span.done{background:var(--ink)}
+.story-bars span.half{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+.stage-row{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);text-align:left;font-size:15px}
+.stage-row:disabled{opacity:.6}
+.stage-tick{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;flex-shrink:0;color:var(--muted)}
+.stage-whatsapp .stage-tick,.stage-tick.stage-whatsapp{color:#25a244;background:#e6f6ea}
+.stage-drive .stage-tick,.stage-tick.stage-drive{color:#fff;background:var(--accent)}
+.stage-label{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+.stage-drive .stage-label{color:var(--accent-text,var(--accent))}
+.stage-whatsapp .stage-label{color:#1f8a39}
 .story-count{font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
 
 .later-list{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:2px}
@@ -232,12 +241,14 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin:8px 0 6px;max-width:320px}
 .meter span{display:block;height:100%;border-radius:6px;background:var(--ok)}
 .ledger-card{overflow:hidden}
-.cm-earnings{padding:18px 20px;display:grid;gap:12px}
-.cm-earnings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0}
-.cm-earnings-grid>div{min-width:0;padding:12px 12px;border-radius:14px;background:var(--sunken)}
-.cm-earnings-grid dt{font-size:13px;font-weight:700;color:var(--muted)}
-.cm-earnings-grid dd{margin:0}
-.cm-earnings-grid dd:nth-of-type(1){font-family:var(--display);font-weight:600;font-size:clamp(17px,5vw,22px);white-space:nowrap;letter-spacing:-.03em;line-height:1.25;margin-top:2px}
+.pay-month{display:grid;gap:12px}
+.pay-month-head{display:grid;gap:6px}
+.pay-party{padding:16px;display:grid;gap:12px}
+.pay-line{padding:10px 12px;border-radius:12px;background:var(--sunken);display:grid;gap:8px}
+.pay-line .badge{margin-top:2px}
+.pay-docs{display:grid;gap:8px;padding-top:8px;border-top:1.5px dashed var(--line)}
+.pay-doc{display:grid;gap:4px;justify-items:start}
+.pay-doc-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .owed-split{display:grid;gap:6px;margin:10px 0 0;max-width:340px}
 .owed-split>div{display:flex;justify-content:space-between;gap:12px;font-size:15px}
 .owed-split dt{color:var(--muted);font-weight:600}
