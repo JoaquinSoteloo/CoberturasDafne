@@ -193,11 +193,11 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
       {monthDates.length
         ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
         : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
+      {!preview && <CalendarSubscribe who="cm"/>}
     </section> : tab === 'pagos' ? <CmPayments concepts={home.concepts} preview={preview} onChange={() => void load()}/>
       : <CmProfile key={`${home.profile?.phone}|${home.profile?.alias}|${home.profile?.photo_path}`} profile={home.profile ?? { name: home.name, email: '', phone: '', alias: '', photo_path: null }} preview={preview} onChange={() => void load()}>
-              </CmProfile>}
-
-    {!preview && <><CalendarSubscribe who="cm"/><ChangePassword/></>}
+          {!preview && <ChangePassword/>}
+        </CmProfile>}
   </Main></>;
 }
 
