@@ -1,7 +1,7 @@
 /** Un aviso de la bandeja de salida, como lo devuelve pending_notifications. */
 export type Outgoing = {
   id: number;
-  kind: 'reminder' | 'assigned' | 'answered' | 'paid';
+  kind: 'reminder' | 'assigned' | 'answered' | 'paid' | 'unpaid' | 'undelivered';
   data: Record<string, unknown>;
   for_coordinator: boolean;
   subscriptions: { endpoint: string; p256dh: string; auth: string }[];
@@ -42,5 +42,9 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
     }
     case 'paid':
       return { title: 'Te registraron un pago', body: `${ars(Number(d.amount_cents) || 0)}. Mirá el detalle en Mis pagos.`, url: '/', tag: `paid-${text(d.date)}-${d.amount_cents}` };
+    case 'unpaid':
+      return { title: `${salon || 'El salón'} todavía debe ${ars(Number(d.owed_cents) || 0)}`, body: `${name}: la fiesta fue hace ${Number(d.days) || 0} días.`, url: detail, tag: `unpaid-${coverageId}` };
+    case 'undelivered':
+      return { title: 'Falta entregar contenido', body: `${name}: la fiesta fue hace ${Number(d.days) || 0} días y todavía no está marcado como entregado.`, url: detail, tag: `undelivered-${coverageId}` };
   }
 }

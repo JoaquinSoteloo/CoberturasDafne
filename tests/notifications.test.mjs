@@ -39,3 +39,13 @@ test('la fecha de hoy se calcula en hora argentina', async () => {
   // 01:30 UTC del 11 es todavía el 10 a las 22:30 en Argentina.
   assert.equal(argentinaToday(new Date('2026-10-11T01:30:00Z')), '2026-10-10');
 });
+
+test('avisos de seguimiento para Dafne', () => {
+  const unpaid = buildMessage({ kind: 'unpaid', data: { ...coverage, owed_cents: 5100000, days: 3 }, for_coordinator: true });
+  assert.match(unpaid.title, /^Eclipse todavía debe \$\s51\.000$/);
+  assert.equal(unpaid.body, 'Cumple de Martina: la fiesta fue hace 3 días.');
+  assert.equal(unpaid.url, '/coberturas/cov-1');
+  const late = buildMessage({ kind: 'undelivered', data: { ...coverage, days: 2 }, for_coordinator: true });
+  assert.equal(late.title, 'Falta entregar contenido');
+  assert.equal(late.url, '/coberturas/cov-1');
+});

@@ -15,7 +15,8 @@ const authorized = (request: Request) => {
 
 /**
  * Despachador de avisos. Lo llama Supabase cada minuto (pg_cron) con CRON_SECRET.
- * Anota los recordatorios que entraron en las 24 horas y manda todo lo pendiente.
+ * Anota los recordatorios que entraron en las 24 horas, los avisos de cobros y entregas
+ * atrasados para la coordinadora, y manda todo lo pendiente.
  */
 export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
@@ -27,6 +28,8 @@ export async function POST(request: Request) {
   try { admin = supabaseAdmin(); } catch { return NextResponse.json({ error: 'Falta SUPABASE_SECRET_KEY en el servidor.' }, { status: 500 }); }
   const { data: reminders, error: enqueueError } = await admin.rpc('enqueue_due_reminders');
   if (enqueueError) return NextResponse.json({ error: enqueueError.message }, { status: 500 });
+  const { data: followups, error: followupsError } = await admin.rpc('enqueue_followups');
+  if (followupsError) return NextResponse.json({ error: followupsError.message }, { status: 500 });
   const { data, error } = await admin.rpc('pending_notifications', { p_limit: 100 });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -50,5 +53,5 @@ export async function POST(request: Request) {
     const { error: finishError } = await admin.rpc('finish_notifications', { p_sent: sent, p_failed: failed, p_gone_endpoints: gone });
     if (finishError) return NextResponse.json({ error: finishError.message }, { status: 500 });
   }
-  return NextResponse.json({ reminders, sent: sent.length, failed: failed.length, removedSubscriptions: gone.length });
+  return NextResponse.json({ reminders, followups, sent: sent.length, failed: failed.length, removedSubscriptions: gone.length });
 }

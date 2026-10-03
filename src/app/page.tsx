@@ -6,15 +6,20 @@ import { useStore } from '@/components/store';
 import { QuickCoverageForm } from '@/components/quick-coverage-form';
 import { Empty, Modal, untilLabel } from '@/components/ui';
 import { Ticket } from '@/components/ticket';
+import { CalendarSubscribe } from '@/components/calendar-subscribe';
 import { ars } from '@/lib/money';
-import { monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
+import { collectionPending, monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
+const daysAgo=(startsAt:string)=>{const n=Math.round((Date.now()-new Date(`${startsAt.slice(0,10)}T12:00`).getTime())/86400000);return n<=1?'fue ayer':`fue hace ${n} días`;};
 export default function Home() {
   const {db,ready}=useStore(); const [open,setOpen]=useState(false);
   const now=new Date(); const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const month=today.slice(0,7); const summary=monthly(db,month);
   const upcoming=db.coverages.filter(c=>c.eventStatus==='pendiente'&&c.startsAt.slice(0,10)>=today).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,4);
   const needsAttention=db.coverages.filter(c=>c.eventStatus==='pendiente'&&(!c.assignments.length||c.assignments.some(a=>a.confirmation!=='confirmada'))).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
-  const pendingDelivery=db.coverages.filter(c=>c.eventStatus==='realizado'&&c.deliveryStatus==='pendiente');
+  // Después de la fiesta: contenido sin entregar y salones que todavía deben.
+  const past=db.coverages.filter(c=>c.eventStatus!=='cancelado'&&c.startsAt.slice(0,10)<today).sort((a,b)=>a.startsAt.localeCompare(b.startsAt));
+  const pendingDelivery=past.filter(c=>c.deliveryStatus==='pendiente');
+  const unpaid=past.map(c=>({c,owed:collectionPending(db,c)})).filter(x=>x.owed>0);
   const monthName=new Intl.DateTimeFormat('es-AR',{month:'long'}).format(now);
   const [next,...later]=upcoming;
   const salon=(id:string)=>db.salons.find(s=>s.id===id)?.name;
@@ -27,13 +32,14 @@ export default function Home() {
           {later.length>0&&<ul className="later-list" aria-label="Después">{later.map(c=><li key={c.id}><Link href={`/coberturas/${c.id}`}><span className="later-date"><strong>{Number(c.startsAt.slice(8,10))}</strong>{new Intl.DateTimeFormat('es-AR',{month:'short'}).format(new Date(c.startsAt.slice(0,10)+'T12:00')).replace('.','')}</span><span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="muted text-sm">{c.startsAt.slice(11,16)} hs · {salon(c.salonId)}</span></span>{!c.assignments.length&&<span className="badge badge-warn">Sin CM</span>}</Link></li>)}</ul>}
         </>}
       </section>
-      <section className="attention-panel" aria-labelledby="todo-title"><div className="section-heading"><h2 id="todo-title" className="section-title">A resolver</h2><span className="attention-count">{needsAttention.length+pendingDelivery.length}</span></div>{ready&&needsAttention.length===0&&pendingDelivery.length===0?<p className="muted text-sm">Todo confirmado y entregado.</p>:<ul className="attention-list">{pendingDelivery.map(c=><li key={c.id}><Link className="attention-item" href={`/coberturas/${c.id}`}><span className="font-bold">{c.name}</span><span className="muted text-sm">Falta entregar el contenido</span></Link></li>)}{needsAttention.map(c=><li key={c.id}><Link href={`/coberturas/${c.id}`} className="attention-item"><span className="font-bold">{c.name}</span><span className="muted text-sm">{!c.assignments.length?'Sin CM asignada':`${c.assignments.filter(a=>a.confirmation!=='confirmada').length} CM por confirmar`} · {untilLabel(c.startsAt).toLowerCase()}</span></Link></li>)}</ul>}</section>
+      <section className="attention-panel" aria-labelledby="todo-title"><div className="section-heading"><h2 id="todo-title" className="section-title">A resolver</h2><span className="attention-count">{needsAttention.length+pendingDelivery.length+unpaid.length}</span></div>{ready&&needsAttention.length===0&&pendingDelivery.length===0&&unpaid.length===0?<p className="muted text-sm">Todo confirmado, entregado y cobrado.</p>:<ul className="attention-list">{pendingDelivery.map(c=><li key={c.id}><Link className="attention-item" href={`/coberturas/${c.id}`}><span className="font-bold">{c.name}</span><span className="muted text-sm">Falta entregar el contenido · {daysAgo(c.startsAt)}</span></Link></li>)}{unpaid.map(({c,owed})=><li key={`u-${c.id}`}><Link className="attention-item" href={`/coberturas/${c.id}`}><span className="font-bold">{c.name}</span><span className="muted text-sm">{salon(c.salonId)??'El salón'} debe {ars(owed)} · {daysAgo(c.startsAt)}</span></Link></li>)}{needsAttention.map(c=><li key={c.id}><Link href={`/coberturas/${c.id}`} className="attention-item"><span className="font-bold">{c.name}</span><span className="muted text-sm">{!c.assignments.length?'Sin CM asignada':`${c.assignments.filter(a=>a.confirmation!=='confirmada').length} CM por confirmar`} · {untilLabel(c.startsAt).toLowerCase()}</span></Link></li>)}</ul>}</section>
     </div>
     <section className="month-panel" aria-labelledby="month-title">
       <div className="month-profit"><h2 id="month-title" className="section-title">Ganancia estimada de <span>{monthName}</span></h2><p className="profit-value">{ready?ars(summary.profit):'—'}</p><dl className="profit-breakdown"><div><dt>Ingresos acordados</dt><dd>{ars(summary.income)}</dd></div><div><dt>Costos previstos</dt><dd>{ars(summary.costs)}</dd></div><div><dt>Cobrado</dt><dd>{ars(summary.collected)}</dd></div><div><dt>Pagado</dt><dd>{ars(summary.paid)}</dd></div></dl></div>
       <div className="balance-stack"><Link href="/pagos?tab=cobros" className="balance-card balance-in"><ArrowDownLeft size={20}/><span className="flex-1">Por cobrar al salón</span><strong>{ready?ars(totalPendingCollections(db)):'—'}</strong></Link><Link href="/pagos?tab=pagos" className="balance-card balance-out"><ArrowUpRight size={20}/><span className="flex-1">Por pagar a las CM</span><strong>{ready?ars(totalPendingPayments(db)):'—'}</strong></Link></div>
     </section>
     <p className="muted max-w-[68ch] text-xs leading-relaxed">El resumen se calcula según la fecha del evento. La ganancia estimada incluye honorarios, gastos y reintegros acordados; no representa dinero disponible.</p>
+    <div className="max-w-xl"><CalendarSubscribe who="coordinadora"/></div>
     {open&&<Modal title="Nueva cobertura" onClose={()=>setOpen(false)}><QuickCoverageForm onDone={()=>setOpen(false)}/></Modal>}
   </div>;
 }

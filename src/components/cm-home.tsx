@@ -13,6 +13,7 @@ import { MapPreview } from './map-preview';
 import { PushPrompt, PushToggle } from './push-control';
 import { tripSummary } from '@/lib/trip';
 import { InstallHint } from './install-hint';
+import { CalendarSubscribe } from './calendar-subscribe';
 
 type Item = { id: string; text: string; done: boolean };
 type Mate = { name: string; phone: string; confirmation: string };
@@ -180,6 +181,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
       <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
     </section>}
 
+    <CalendarSubscribe who="cm"/>
     <ChangePassword/>
   </main></>;
 }
