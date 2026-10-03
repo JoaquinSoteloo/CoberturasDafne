@@ -15,3 +15,11 @@ test('calendario incluye febrero bisiesto y meses de seis semanas',()=>{
   assert.ok(calendarDays('2028-02').includes('2028-02-29'));
   assert.equal(calendarDays('2026-03').length,42);
 });
+
+test('la hora de fin pasa al día siguiente si es de madrugada', async () => {
+  const { endsAtFor } = await import('../src/lib/calendar.ts');
+  assert.equal(endsAtFor('2026-10-10T21:00', '02:00'), '2026-10-11T02:00');
+  assert.equal(endsAtFor('2026-10-31T21:00', '04:30'), '2026-11-01T04:30');
+  assert.equal(endsAtFor('2026-10-10T13:00', '18:00'), '2026-10-10T18:00');
+  assert.equal(endsAtFor('2026-10-10T21:00', ''), '');
+});

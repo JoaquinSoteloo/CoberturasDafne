@@ -7,3 +7,12 @@ export function calendarDays(month: string) {
   return Array.from({length:count},(_,i)=>dayKey(new Date(year,number-1,1-offset+i,12)));
 }
 export function shiftMonth(month:string,delta:number){const [y,m]=month.split('-').map(Number);return dayKey(new Date(y,m-1+delta,1,12)).slice(0,7)}
+
+/** Hora de fin de la fiesta: si es igual o anterior a la de inicio, termina al día siguiente. */
+export function endsAtFor(startsAt: string, time: string): string {
+  if (!time || !startsAt) return '';
+  const day = startsAt.slice(0, 10);
+  if (time > startsAt.slice(11, 16)) return `${day}T${time}`;
+  const next = new Date(`${day}T12:00`); next.setDate(next.getDate() + 1);
+  return `${dayKey(next)}T${time}`;
+}

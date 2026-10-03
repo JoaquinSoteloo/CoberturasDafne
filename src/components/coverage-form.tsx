@@ -11,6 +11,7 @@ import { ars } from '@/lib/money';
 import { collected, conceptPaid, expectedIncome, expenseIsPaid } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
+import { endsAtFor } from '@/lib/calendar';
 import type { Coverage, Expense } from '@/lib/types';
 
 const localNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T20:00`; };
@@ -59,7 +60,8 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
       <label><span className="label">Tipo de fiesta · opcional</span><input className="field" value={form.partyType} onChange={e => change('partyType',e.target.value)} placeholder="Ej. boda, 15 años"/></label>
       <label><span className="label">Cliente · opcional</span><input className="field" value={form.client} onChange={e => change('client',e.target.value)}/></label>
       <label><span className="label">Salón *</span><select className="field" value={form.salonId} onChange={e => { const s=db.salons.find(x=>x.id===e.target.value); setForm(f=>({...f,salonId:e.target.value,address:s?.address||f.address})); }}>{db.salons.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => change('startsAt',e.target.value)} required/></label>
+      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16))})); }} required/></label>
+      <label><span className="label">Termina · opcional</span><input className="field" type="time" value={form.endsAt.slice(11,16)} onChange={e => change('endsAt',endsAtFor(form.startsAt,e.target.value))}/><span className="muted mt-2 block text-sm">Si termina de madrugada, se toma como el día siguiente.</span></label>
       <label className="sm:col-span-2"><span className="label">Observaciones</span><textarea className="field" value={form.notes} onChange={e => change('notes',e.target.value)}/><span className="muted mt-2 block text-sm">Las ven las CM asignadas a esta fiesta.</span></label>
       <label><span className="label">Estado del evento</span><select className="field" value={form.eventStatus} onChange={e => change('eventStatus',e.target.value as Coverage['eventStatus'])}><option value="pendiente">Pendiente</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select></label>
       <MoneyField label="Importe acordado con el salón" value={form.agreedCents} onChange={v => change('agreedCents',v)}/>

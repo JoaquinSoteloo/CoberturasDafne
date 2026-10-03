@@ -21,7 +21,7 @@ test('pendiente de confirmar, cancelada, sin hora de fin', () => {
   const ics = buildCalendar([{ ...base, confirmation: 'pendiente', ends_at: null }, { ...base, id: 'cov-2', event_status: 'cancelado' }], { appUrl: 'https://app.test', coordinator: false });
   assert.match(ics, /SUMMARY:Cumple de Martina \(a confirmar\)/);
   assert.match(ics, /STATUS:TENTATIVE/);
-  assert.match(ics, /DTEND:20261011T050000Z/);
+  assert.equal(ics.match(/DTEND/g).length, 1); // solo la cancelada, que tiene hora de fin
   assert.match(ics, /STATUS:CANCELLED/);
   assert.match(buildCalendar([base], { appUrl: 'https://app.test', coordinator: true }), /URL:https:\/\/app\.test\/coberturas\/cov-1/);
 });
