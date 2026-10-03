@@ -47,7 +47,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     if (form.deliveryStatus === 'entregada' && !form.driveUrl.trim() && !form.deliveredPieces) { setError('Para marcar la entrega, cargá un link de Drive o la cantidad de piezas.'); return; }
     setError('');
     if (form.expenses.some(x=>x.kind==='uber' && x.paymentStatus==='pendiente' && conceptPaid(db,`expense:${x.id}`)>=x.amountCents)) { setError('Este Uber ya fue liquidado. No se puede marcar como pendiente sin ajustar el pago registrado.'); return; }
-    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:otherType?form.partyType.trim():partyTypeOf(form.partyType), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim(),notify:true})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
+    const cleaned = { ...form, assignments:form.assignments.map(a=>a.cmId===selfId?{...a,feeCents:0}:a), name:form.name.trim(), client:form.client.trim(), partyType:otherType?form.partyType.trim():partyTypeOf(form.partyType), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim(),notify:true})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
     // Lo que pasó con la primera fiesta: el acordado se bajó después de registrar el cobro.
     if (initial && expectedIncome(cleaned) < collected(db, cleaned.id) && !confirm(`Ya registraste cobros por ${ars(collected(db, cleaned.id))} y lo acordado queda en ${ars(expectedIncome(cleaned))}. Si el cobro fue por el monto viejo, después corregilo desde Pagos. ¿Guardar igual?`)) return;
     const apply = (db: Db) => {
@@ -71,7 +71,7 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
   const addAssignment = () => {
     const cm = db.cms.find(x => !form.assignments.some(a => a.cmId === x.id));
     if (!cm) { setError('No quedan CM disponibles para asignar.'); return; }
-    change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:cm.usualFeeCents, confirmation:'pendiente' }]);
+    change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:cm.id===selfId?0:cm.usualFeeCents, confirmation:cm.id===selfId?'confirmada':'pendiente' }]);
   };
   // Dafne no va a las fiestas: todo Uber es de una CM y Dafne se lo devuelve. Si va una sola, queda a su nombre.
   const activeCms = form.assignments.filter(a => a.confirmation !== 'rechazada');
@@ -123,8 +123,8 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     {(!section||section==='team')&&<section><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="section-title">CM asignadas</h3><button type="button" className="btn btn-secondary" onClick={addAssignment}><Plus size={17}/> Asignar CM</button></div>
       {!form.assignments.length && <p className="muted text-sm">Todavía no hay CM asignadas.</p>}
       <div className="space-y-3">{form.assignments.map(a => <div key={a.id} className="rounded-xl border border-[var(--line)] bg-[var(--sunken)] p-3"><div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-        <label><span className="label">CM</span><select className="field" value={a.cmId} onChange={e => { const cm=db.cms.find(c=>c.id===e.target.value); change('assignments', form.assignments.map(x=>x.id===a.id ? {...x,cmId:e.target.value,feeCents:cm?.usualFeeCents||0} : x)); }}>{db.cms.map(cm=><option key={cm.id} value={cm.id}>{cm.name}</option>)}</select></label>
-        <MoneyField label="Honorario acordado" value={a.feeCents} onChange={v => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,feeCents:v}:x))}/>
+        <label><span className="label">CM</span><select className="field" value={a.cmId} onChange={e => { const cm=db.cms.find(c=>c.id===e.target.value); change('assignments', form.assignments.map(x=>x.id===a.id ? {...x,cmId:e.target.value,feeCents:cm&&cm.id!==selfId?cm.usualFeeCents||0:0,...(cm?.id===selfId?{confirmation:'confirmada' as const}:{})} : x)); }}>{db.cms.map(cm=><option key={cm.id} value={cm.id}>{cm.name}{cm.id===selfId?' (vos)':''}</option>)}</select></label>
+        {a.cmId===selfId?<p className="muted self-end text-sm">Vos: lo que queda de la fiesta es tu ganancia, no se carga honorario.</p>:<MoneyField label="Honorario acordado" value={a.feeCents} onChange={v => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,feeCents:v}:x))}/>}
         <button type="button" aria-label="Quitar CM" className="btn btn-danger self-end" onClick={() => { if (confirm('¿Quitar esta CM de la cobertura?')) change('assignments',form.assignments.filter(x=>x.id!==a.id)); }}><Trash2 size={18}/></button>
       </div><label className="mt-3 block"><span className="label">Confirmación</span><select className="field" value={a.confirmation} onChange={e => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,confirmation:e.target.value as typeof a.confirmation}:x))}><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="rechazada">Rechazada</option></select></label></div>)}</div>
     </section>}
