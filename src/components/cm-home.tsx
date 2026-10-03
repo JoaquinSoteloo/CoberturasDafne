@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import { CalendarDays, Clock, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
@@ -19,7 +19,7 @@ type Item = { id: string; text: string; done: boolean };
 type Mate = { name: string; phone: string; confirmation: string };
 type CmDate = {
   id: string; name: string; party_type: string; client: string; salon: string; address: string;
-  starts_at: string; ends_at: string | null; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
+  starts_at: string; ends_at: string | null; arrive_at: string | null; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
   lat: number | null; lng: number | null;
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
   checklist: Item[]; team: Mate[];
@@ -191,7 +191,7 @@ function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
   const s = status(d);
   return <button type="button" className="cm-row" onClick={() => onOpen(d.id)}>
     <span className="cm-row-date"><strong>{Number(d.starts_at.slice(8, 10))}</strong>{weekday(d.starts_at)}</span>
-    <span className="min-w-0 flex-1 text-left"><span className="block font-bold leading-tight line-clamp-2">{d.name}</span><span className="muted block truncate text-sm">{time(d.starts_at)} hs · {d.salon}</span></span>
+    <span className="min-w-0 flex-1 text-left"><span className="block font-bold leading-tight line-clamp-2">{d.name}</span><span className="muted block truncate text-sm">{d.arrive_at ? `Llegás ${time(d.arrive_at)}` : `${time(d.starts_at)} hs`} · {d.salon}</span></span>
     <span className={`badge cm-status-${s.tone}`}>{s.label}</span>
     <ChevronRight size={18} className="shrink-0 text-[var(--muted)]"/>
   </button>;
@@ -210,6 +210,7 @@ function DateCard({ d, now, busy, answer, tick }: {
         <p className="ticket-when"><span className={`when-pill when-${d.event_status}`}>{d.event_status === 'cancelado' ? 'Cancelada' : untilLabel(d.starts_at)}</span><span>{longDay(d.starts_at)}</span></p>
         <h1 className="ticket-name">{d.name}</h1>
         <p className="ticket-place"><MapPin size={15}/>{[d.party_type, d.salon].filter(Boolean).join(', en ')}</p>
+        {d.arrive_at && <p className="ticket-arrive"><Clock size={15}/>Llegá a las {time(d.arrive_at)}</p>}
         <p className="ticket-extra">{[d.client && `Para ${d.client}`, d.address].filter(Boolean).join('. ')}</p>
         {d.notes && <p className="ticket-note">{d.notes}</p>}
       </div>

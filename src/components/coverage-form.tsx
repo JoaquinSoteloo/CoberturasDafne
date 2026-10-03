@@ -11,11 +11,11 @@ import { ars } from '@/lib/money';
 import { collected, conceptPaid, expectedIncome, expenseIsPaid } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
-import { endsAtFor } from '@/lib/calendar';
+import { arriveAtFor, endsAtFor } from '@/lib/calendar';
 import type { Coverage, Expense } from '@/lib/types';
 
 const localNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T20:00`; };
-const blank = (salonId: string, address: string): Coverage => ({ id: newId(), name:'', partyType:'', client:'', salonId, address, startsAt:localNow(), endsAt:'', notes:'', assignments:[], agreedCents:0, expenses:[], checklist:[], driveUrl:'', deliveredPieces:0, deliveryNotes:'', eventStatus:'pendiente', deliveryStatus:'pendiente' });
+const blank = (salonId: string, address: string): Coverage => ({ id: newId(), name:'', partyType:'', client:'', salonId, address, startsAt:localNow(), endsAt:'', arriveAt:'', notes:'', assignments:[], agreedCents:0, expenses:[], checklist:[], driveUrl:'', deliveredPieces:0, deliveryNotes:'', eventStatus:'pendiente', deliveryStatus:'pendiente' });
 export function CoverageForm({ initial, onDone, defaultDate, section }: { initial?: Coverage; onDone?: () => void; defaultDate?: string; section?: 'event'|'team'|'expenses'|'content' }) {
   const { db, update } = useStore(); const router = useRouter();
   const [form, setForm] = useState<Coverage>(() => initial ? {...structuredClone(initial), expenses:initial.expenses.map(x=>({...x,paymentStatus:expenseIsPaid(db,x)?'pagado':'pendiente'}))} : {...blank(db.salons[0]?.id || '', ''),...(defaultDate?{startsAt:defaultDate+'T20:00'}:{})});
@@ -60,7 +60,8 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
       <label><span className="label">Tipo de fiesta · opcional</span><input className="field" value={form.partyType} onChange={e => change('partyType',e.target.value)} placeholder="Ej. boda, 15 años"/></label>
       <label><span className="label">Cliente · opcional</span><input className="field" value={form.client} onChange={e => change('client',e.target.value)}/></label>
       <label><span className="label">Salón *</span><select className="field" value={form.salonId} onChange={e => { const s=db.salons.find(x=>x.id===e.target.value); setForm(f=>({...f,salonId:e.target.value,address:s?.address||f.address})); }}>{db.salons.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16))})); }} required/></label>
+      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16)),arriveAt:arriveAtFor(startsAt,f.arriveAt.slice(11,16))})); }} required/></label>
+      <label><span className="label">Llegada de las CM · opcional</span><input className="field" type="time" value={form.arriveAt.slice(11,16)} onChange={e => change('arriveAt',arriveAtFor(form.startsAt,e.target.value))}/><span className="muted mt-2 block text-sm">Si las CM tienen que llegar antes. La usan el aviso del día anterior y su calendario.</span></label>
       <label><span className="label">Termina · opcional</span><input className="field" type="time" value={form.endsAt.slice(11,16)} onChange={e => change('endsAt',endsAtFor(form.startsAt,e.target.value))}/><span className="muted mt-2 block text-sm">Si termina de madrugada, se toma como el día siguiente.</span></label>
       <label className="sm:col-span-2"><span className="label">Observaciones</span><textarea className="field" value={form.notes} onChange={e => change('notes',e.target.value)}/><span className="muted mt-2 block text-sm">Las ven las CM asignadas a esta fiesta.</span></label>
       <label><span className="label">Estado del evento</span><select className="field" value={form.eventStatus} onChange={e => change('eventStatus',e.target.value as Coverage['eventStatus'])}><option value="pendiente">Pendiente</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select></label>

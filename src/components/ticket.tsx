@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin } from 'lucide-react';
+import { Clock, MapPin } from 'lucide-react';
 import { StoryBars, untilLabel } from './ui';
 import type { Coverage, Db } from '@/lib/types';
 
@@ -15,6 +15,7 @@ export function Ticket({coverage:c,db,href,children}:{coverage:Coverage;db:Db;hr
       <p className="ticket-when"><span className={`when-pill when-${c.eventStatus}`}>{whenLabel(c)}</span><span>{longDay(c.startsAt)}</span></p>
       {href?<p className="ticket-name">{c.name}</p>:<h1 className="ticket-name">{c.name}</h1>}
       <p className="ticket-place"><MapPin size={15}/>{[c.partyType,salon].filter(Boolean).join(', en ')}</p>
+      {c.arriveAt&&<p className="ticket-arrive"><Clock size={15}/>Las CM llegan {c.arriveAt.slice(11,16)}</p>}
       {children}
       <ul className="ticket-crew" aria-label="Equipo">{c.assignments.length?c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className={`crew-chip crew-${a.confirmation}`}><span className="crew-initials" aria-hidden="true">{initials(cm?.name)}</span>{cm?.name.split(' ')[0]}<span className="crew-state">{a.confirmation==='confirmada'?'confirmada':a.confirmation==='rechazada'?'no puede':'sin confirmar'}</span></li>}):<li className="crew-chip crew-pendiente">Sin CM asignada</li>}</ul>
       <StoryBars items={c.checklist}/>

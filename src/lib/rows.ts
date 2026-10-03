@@ -38,7 +38,7 @@ export function toRows(db: Db): Rows {
     cms: db.cms.map(c => ({ id: c.id, name: c.name, phone: c.phone, email: c.email, usual_fee_cents: c.usualFeeCents, notes: c.notes })),
     coverages: db.coverages.map(c => ({
       id: c.id, name: c.name, party_type: c.partyType, client: c.client, salon_id: c.salonId, address: c.address,
-      starts_at: c.startsAt, ends_at: c.endsAt || null, notes: c.notes, agreed_cents: c.agreedCents, drive_url: c.driveUrl,
+      starts_at: c.startsAt, ends_at: c.endsAt || null, arrive_at: c.arriveAt || null, notes: c.notes, agreed_cents: c.agreedCents, drive_url: c.driveUrl,
       delivered_pieces: c.deliveredPieces, delivery_notes: c.deliveryNotes, event_status: c.eventStatus, delivery_status: c.deliveryStatus
     })),
     assignments: db.coverages.flatMap(c => c.assignments.map((a, position) => ({
@@ -80,7 +80,7 @@ export function fromRows(rows: Rows): Db {
     cms: rows.cms.map(c => ({ id: c.id, name: str(c.name), phone: str(c.phone), email: str(c.email), usualFeeCents: Number(c.usual_fee_cents), notes: str(c.notes) })),
     coverages: rows.coverages.map(c => ({
       id: c.id, name: str(c.name), partyType: str(c.party_type), client: str(c.client), salonId: str(c.salon_id), address: str(c.address),
-      startsAt: minutes(c.starts_at), endsAt: minutes(c.ends_at), notes: str(c.notes), agreedCents: Number(c.agreed_cents),
+      startsAt: minutes(c.starts_at), endsAt: minutes(c.ends_at), arriveAt: minutes(c.arrive_at), notes: str(c.notes), agreedCents: Number(c.agreed_cents),
       driveUrl: str(c.drive_url), deliveredPieces: Number(c.delivered_pieces), deliveryNotes: str(c.delivery_notes),
       eventStatus: c.event_status as Db['coverages'][number]['eventStatus'], deliveryStatus: c.delivery_status as Db['coverages'][number]['deliveryStatus'],
       assignments: (assignments.get(c.id) ?? []).map(a => ({ id: a.id, cmId: str(a.cm_id), feeCents: Number(a.fee_cents), confirmation: a.confirmation as 'pendiente' })),

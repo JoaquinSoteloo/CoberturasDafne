@@ -1,7 +1,7 @@
 /** Una fecha de la agenda, como la devuelve calendar_events. */
 export type CalendarEvent = {
   id: string; name: string; party_type: string; salon: string; address: string;
-  starts_at: string; ends_at: string | null; notes: string; event_status: string;
+  starts_at: string; ends_at: string | null; arrive_at?: string | null; notes: string; event_status: string;
   updated_at: string; confirmation: string | null;
 };
 
@@ -32,12 +32,14 @@ export function buildCalendar(events: CalendarEvent[], opts: { appUrl: string; c
     'X-WR-CALNAME:BS Marketing', 'X-WR-TIMEZONE:America/Argentina/Buenos_Aires',
     'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H'];
   for (const e of events) {
-    const start = utc(e.starts_at);
+    // En el calendario de la CM la fiesta arranca a la hora en que tiene que llegar.
+    const arrive = e.arrive_at ? e.arrive_at.slice(11, 16) : '';
+    const start = utc(!opts.coordinator && e.arrive_at ? e.arrive_at : e.starts_at);
     // Sin hora de fin cargada no se inventa una: el evento queda marcado solo con la hora de inicio.
     const end = e.ends_at && utc(e.ends_at) > start ? utc(e.ends_at) : null;
     const link = `${opts.appUrl}${opts.coordinator ? `/coberturas/${e.id}` : `/?fecha=${e.id}`}`;
     const pending = !opts.coordinator && e.confirmation === 'pendiente';
-    const description = [e.party_type, pending ? 'Todavía no la confirmaste.' : '', e.notes, `Ver en la app: ${link}`].filter(Boolean).join('\n\n');
+    const description = [e.party_type, arrive ? (opts.coordinator ? `Las CM llegan ${arrive}.` : `Llegá a las ${arrive}. La fiesta empieza ${e.starts_at.slice(11, 16)}.`) : '', pending ? 'Todavía no la confirmaste.' : '', e.notes, `Ver en la app: ${link}`].filter(Boolean).join('\n\n');
     lines.push('BEGIN:VEVENT', `UID:${e.id}@bs-marketing`, `DTSTAMP:${stamp(e.updated_at ? new Date(e.updated_at) : opts.now ?? new Date())}`,
       `DTSTART:${stamp(start)}`, ...(end ? [`DTEND:${stamp(end)}`] : []),
       `SUMMARY:${escape(`${e.name}${pending ? ' (a confirmar)' : ''}`)}`,

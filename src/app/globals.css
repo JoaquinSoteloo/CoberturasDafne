@@ -250,6 +250,8 @@ a.ledger-row:hover{background:var(--sunken)}
 .back-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;font-weight:700;color:var(--accent-text)}
 .detail-hero{display:grid;gap:12px;justify-items:start}
 .detail-hero .ticket{width:100%}
+.ticket-arrive{display:flex;align-items:center;gap:6px;margin-top:6px;font-weight:700;color:var(--ink)}
+.ticket-arrive svg{color:var(--accent)}
 .ticket-extra{margin-top:4px;color:var(--muted);font-size:15px}
 .ticket-note{margin-top:12px;padding:8px 12px;border-radius:10px;background:var(--flash-soft);font-size:14px;font-weight:600;display:inline-block}
 .when-realizado{background:var(--ok-soft);color:var(--ok)}

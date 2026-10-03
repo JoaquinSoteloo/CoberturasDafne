@@ -16,3 +16,11 @@ export function endsAtFor(startsAt: string, time: string): string {
   const next = new Date(`${day}T12:00`); next.setDate(next.getDate() + 1);
   return `${dayKey(next)}T${time}`;
 }
+
+/** Hora de llegada de las CM: el día que la deja más cerca del inicio (21:00 → 20:30 el mismo día; 00:30 → 23:45 el día anterior). */
+export function arriveAtFor(startsAt: string, time: string): string {
+  if (!time || !startsAt) return '';
+  const start = new Date(startsAt).getTime();
+  const options = [-1, 0, 1].map(offset => { const d = new Date(`${startsAt.slice(0, 10)}T12:00`); d.setDate(d.getDate() + offset); return `${dayKey(d)}T${time}`; });
+  return options.reduce((best, v) => Math.abs(new Date(v).getTime() - start) < Math.abs(new Date(best).getTime() - start) ? v : best);
+}

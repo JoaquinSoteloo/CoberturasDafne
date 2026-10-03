@@ -23,3 +23,11 @@ test('la hora de fin pasa al día siguiente si es de madrugada', async () => {
   assert.equal(endsAtFor('2026-10-10T13:00', '18:00'), '2026-10-10T18:00');
   assert.equal(endsAtFor('2026-10-10T21:00', ''), '');
 });
+
+test('la hora de llegada queda en el día más cercano al inicio', async () => {
+  const { arriveAtFor } = await import('../src/lib/calendar.ts');
+  assert.equal(arriveAtFor('2026-10-10T21:00', '20:30'), '2026-10-10T20:30');
+  assert.equal(arriveAtFor('2026-10-11T00:30', '23:45'), '2026-10-10T23:45');
+  assert.equal(arriveAtFor('2026-10-10T21:00', '23:00'), '2026-10-10T23:00');
+  assert.equal(arriveAtFor('2026-10-10T21:00', ''), '');
+});

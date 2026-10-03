@@ -30,3 +30,13 @@ test('ninguna línea pasa de 75 bytes', () => {
   const ics = buildCalendar([{ ...base, notes: 'ñ'.repeat(200) }], { appUrl: 'https://app.test', coordinator: true });
   for (const line of ics.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, line);
 });
+
+test('con hora de llegada, la CM la ve como inicio y Dafne como nota', () => {
+  const withArrival = { ...base, arrive_at: '2026-10-10T20:30:00' };
+  const cm = buildCalendar([withArrival], { appUrl: 'https://app.test', coordinator: false }).replace(/\r\n /g, '');
+  assert.match(cm, /DTSTART:20261010T233000Z/);
+  assert.ok(cm.includes('Llegá a las 20:30. La fiesta empieza 21:00.'));
+  const dafne = buildCalendar([withArrival], { appUrl: 'https://app.test', coordinator: true }).replace(/\r\n /g, '');
+  assert.match(dafne, /DTSTART:20261011T000000Z/);
+  assert.ok(dafne.includes('Las CM llegan 20:30.'));
+});

@@ -49,3 +49,10 @@ test('avisos de seguimiento para Dafne', () => {
   assert.equal(late.title, 'Falta entregar contenido');
   assert.equal(late.url, '/coberturas/cov-1');
 });
+
+test('con hora de llegada, el recordatorio de la CM dice a qué hora llegar', () => {
+  const data = { ...coverage, arrive_at: '2026-10-10T20:30:00' };
+  assert.equal(buildMessage({ kind: 'reminder', data, for_coordinator: false }, '2026-10-09').body, 'Llegá a las 20:30 a Eclipse. Empieza 21:00.');
+  assert.equal(buildMessage({ kind: 'reminder', data, for_coordinator: true }, '2026-10-09').body, 'sábado, 10 de octubre a las 21:00 en Eclipse. Las CM llegan 20:30.');
+  assert.match(buildMessage({ kind: 'assigned', data, for_coordinator: false }).body, /Llegada 20:30\. Entrá para confirmarla\.$/);
+});

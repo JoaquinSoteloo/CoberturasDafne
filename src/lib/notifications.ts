@@ -27,14 +27,19 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
   const d = n.data;
   const coverageId = text(d.coverage_id), name = text(d.coverage_name), salon = text(d.salon);
   const place = salon ? ` en ${salon}` : '';
+  // Hora de llegada de las CM, si es distinta del inicio.
+  const arrive = text(d.arrive_at).slice(11, 16);
+  const arriveNote = arrive ? ` Llegada ${arrive}.` : '';
   const detail = coverageId ? `/coberturas/${coverageId}` : '/';
   // La CM abre la fecha en su propia pantalla dentro de "Mis fechas".
   const cmDate = coverageId ? `/?fecha=${coverageId}` : '/';
   switch (n.kind) {
     case 'reminder':
-      return { title: `${text(d.starts_at).slice(0, 10) === today ? 'Hoy' : 'Mañana'}: ${name}`, body: `${when(text(d.starts_at))}${place}.`, url: n.for_coordinator ? detail : cmDate, tag: `reminder-${coverageId}` };
+      return { title: `${text(d.starts_at).slice(0, 10) === today ? 'Hoy' : 'Mañana'}: ${name}`,
+        body: !arrive ? `${when(text(d.starts_at))}${place}.` : n.for_coordinator ? `${when(text(d.starts_at))}${place}. Las CM llegan ${arrive}.` : `Llegá a las ${arrive}${salon ? ` a ${salon}` : ''}. Empieza ${text(d.starts_at).slice(11, 16)}.`,
+        url: n.for_coordinator ? detail : cmDate, tag: `reminder-${coverageId}` };
     case 'assigned':
-      return { title: 'Tenés una fecha nueva', body: `${name}, ${when(text(d.starts_at))}${place}. Entrá para confirmarla.`, url: cmDate, tag: `assigned-${coverageId}` };
+      return { title: 'Tenés una fecha nueva', body: `${name}, ${when(text(d.starts_at))}${place}.${arriveNote} Entrá para confirmarla.`, url: cmDate, tag: `assigned-${coverageId}` };
     case 'answered': {
       const first = text(d.cm_name).split(' ')[0] || 'Una CM';
       const confirmed = d.confirmation === 'confirmada';
