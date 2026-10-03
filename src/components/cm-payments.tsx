@@ -41,7 +41,7 @@ function Line({ c, preview, onChange }: { c: MoneyConcept; preview: boolean; onC
   const trip = c.kind === 'expense' ? tripSummary({ tripFrom: c.trip_from ?? undefined, tripTo: c.trip_to ?? undefined, tripStartedAt: c.trip_started_at ?? undefined, tripEndedAt: c.trip_ended_at ?? undefined }) : '';
   return <li className="pay-line">
     <div className="flex items-start gap-3">
-      <span className="min-w-0 flex-1"><span className="block font-semibold">{c.kind === 'fee' ? 'Honorario' : c.label.replace(/^Reintegro: /, '')}</span>{trip && <span className="muted block text-sm">{trip}</span>}</span>
+      <span className="min-w-0 flex-1"><span className="block font-semibold">{c.kind === 'fee' ? 'Cobertura' : c.label.replace(/^Reintegro: /, '')}</span>{trip && <span className="muted block text-sm">{trip}</span>}</span>
       <span className="text-right"><span className="block font-bold tabular-nums">{ars(c.amount_cents)}</span>{status}</span>
     </div>
     {(c.kind === 'expense' || proofs.length > 0) && <div className="pay-docs">
@@ -69,7 +69,7 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
   return <section className="space-y-6" aria-label="Mis pagos">
     <div className="ledger-card card"><div className="ledger-head"><div className="w-full"><h2 className="section-title">{owed > 0 ? 'Te falta cobrar' : 'Estás al día'}</h2>
       {owed > 0 && <dl className="owed-split"><div><dt>Coberturas</dt><dd>{ars(owedFees)}</dd></div><div><dt>Ubers</dt><dd>{ars(owedUbers)}</dd></div><div className="owed-total"><dt>Total</dt><dd>{ars(owed)}</dd></div></dl>}
-      <p className="muted mt-3 text-sm">En {year} llevás {ars(yearFees)} en honorarios. Los Ubers no cuentan como ganancia: es plata que pusiste vos.</p>
+      <p className="muted mt-3 text-sm">En {year} llevás {ars(yearFees)} en coberturas. Los Ubers no suman a tu ganancia: son viáticos que cubre la empresa.</p>
     </div></div></div>
 
     <div className="pay-month-nav" role="group" aria-label="Mes">
