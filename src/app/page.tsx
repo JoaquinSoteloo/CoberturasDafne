@@ -1,17 +1,23 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useStore } from '@/components/store';
 import { QuickCoverageForm } from '@/components/quick-coverage-form';
 import { Empty, Modal, untilLabel } from '@/components/ui';
 import { Ticket } from '@/components/ticket';
 import { CalendarSubscribe } from '@/components/calendar-subscribe';
+import { LiveNow, cameFromShortcut } from '@/components/live-now';
+import { liveEvents } from '@/lib/live';
 import { ars } from '@/lib/money';
 import { byPartyType, collectionPending, monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
 const daysAgo=(startsAt:string)=>{const n=Math.round((Date.now()-new Date(`${startsAt.slice(0,10)}T12:00`).getTime())/86400000);return n<=1?'fue ayer':`fue hace ${n} días`;};
 export default function Home() {
-  const {db,ready}=useStore(); const [open,setOpen]=useState(false);
+  const {db,ready}=useStore(); const [open,setOpen]=useState(false); const router=useRouter();
+  const liveItems=db.coverages.filter(c=>c.eventStatus!=='cancelado').map(c=>({id:c.id,name:c.name,startsAt:c.startsAt,endsAt:c.endsAt,arriveAt:c.arriveAt,salon:db.salons.find(s=>s.id===c.salonId)?.name}));
+  // Atajo del ícono ("Fiesta de ahora"): abre directo la que está pasando o por empezar.
+  useEffect(()=>{if(!ready||!cameFromShortcut())return;const first=liveEvents(liveItems)[0];if(first)router.replace(`/coberturas/${first.id}`);else window.history.replaceState(null,'','/');},[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const now=new Date(); const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const month=today.slice(0,7); const summary=monthly(db,month);
   const upcoming=db.coverages.filter(c=>c.eventStatus==='pendiente'&&c.startsAt.slice(0,10)>=today).sort((a,b)=>a.startsAt.localeCompare(b.startsAt)).slice(0,4);
@@ -24,6 +30,7 @@ export default function Home() {
   const [next,...later]=upcoming;
   const salon=(id:string)=>db.salons.find(s=>s.id===id)?.name;
   return <div className="space-y-9">
+    <LiveNow items={liveItems} href={id=>`/coberturas/${id}`}/>
     <div className="page-heading"><div><h1 className="page-title">Hola, Dafne</h1><p className="muted mt-2">{upcoming.length?`Tenés ${upcoming.length===4?'4 o más fiestas':upcoming.length===1?'una fiesta':`${upcoming.length} fiestas`} por delante.`:'No hay fiestas agendadas por ahora.'}</p></div><button className="btn btn-primary" onClick={()=>setOpen(true)}><Plus size={19}/> Nueva cobertura</button></div>
     <div className="dashboard-columns">
       <section aria-labelledby="next-title"><div className="section-heading"><h2 id="next-title" className="section-title">Próxima fiesta</h2><Link href="/coberturas" className="text-link">Ver agenda</Link></div>

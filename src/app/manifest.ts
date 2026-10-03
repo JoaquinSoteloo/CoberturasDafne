@@ -12,6 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: 'portrait',
     background_color: '#22183d',
     theme_color: '#22183d',
+    // Mantener apretado el ícono (Android): entra directo a la fiesta que está pasando.
+    shortcuts: [{ name: 'Fiesta de ahora', short_name: 'Ahora', url: '/?ahora=1', icons: [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }] }],
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

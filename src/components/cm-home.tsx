@@ -15,6 +15,8 @@ import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
 import { tripSummary } from '@/lib/trip';
 import { cmEarnings } from '@/lib/cm-earnings';
+import { LiveNow, cameFromShortcut } from './live-now';
+import { liveEvents } from '@/lib/live';
 import { InstallHint } from './install-hint';
 import { CalendarSubscribe } from './calendar-subscribe';
 
@@ -86,6 +88,13 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+  // Atajo del ícono ("Fiesta de ahora"): cuando cargan las fechas, abre la que está pasando o por empezar.
+  useEffect(() => {
+    if (!home || !cameFromShortcut()) return;
+    const first = liveEvents(home.dates.filter(d => d.event_status !== 'cancelado' && d.confirmation !== 'rechazada').map(d => ({ id: d.id, startsAt: d.starts_at, endsAt: d.ends_at, arriveAt: d.arrive_at })))[0];
+    window.history.replaceState(first ? { fecha: first.id } : null, '', first ? `${window.location.pathname}?fecha=${first.id}` : window.location.pathname);
+    setOpenId(first?.id ?? null);
+  }, [home]);
   const openDate = (id: string) => { window.history.pushState({ fecha: id }, '', `${window.location.pathname}?fecha=${id}`); setOpenId(id); window.scrollTo(0, 0); };
   const closeDate = () => {
     if (window.history.state?.fecha) window.history.back();
@@ -152,6 +161,8 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   return <>{header}<Main className="cm-page space-y-6">
     {!preview && <><InstallHint/><PushPrompt forCm/></>}
     <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
+
+    <LiveNow items={home.dates.filter(d => d.event_status !== 'cancelado' && d.confirmation !== 'rechazada').map(d => ({ id: d.id, name: d.name, salon: d.salon, startsAt: d.starts_at, endsAt: d.ends_at, arriveAt: d.arrive_at }))} onOpen={openDate}/>
 
     {toAnswer.length > 0 && <section className="cm-to-answer" aria-labelledby="to-answer-title">
       <h2 id="to-answer-title" className="font-bold">{toAnswer.length === 1 ? 'Tenés una fecha para confirmar' : `Tenés ${toAnswer.length} fechas para confirmar`}</h2>
