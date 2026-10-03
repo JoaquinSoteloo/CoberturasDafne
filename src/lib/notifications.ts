@@ -1,5 +1,5 @@
 /** Los tipos de aviso que esta versión sabe escribir. El despachador le pide a la base solo estos. */
-export const KINDS = ['reminder', 'assigned', 'answered', 'paid', 'unpaid', 'undelivered', 'changed', 'cancelled', 'removed', 'unanswered', 'moment'] as const;
+export const KINDS = ['reminder', 'assigned', 'answered', 'paid', 'unpaid', 'undelivered', 'changed', 'cancelled', 'removed', 'unanswered', 'moment', 'receipt'] as const;
 
 /** Un aviso de la bandeja de salida, como lo devuelve pending_notifications. */
 export type Outgoing = {
@@ -77,5 +77,12 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
     }
     case 'moment':
       return { title: `En 10 minutos: ${text(d.label)}`, body: `${name}, a las ${text(d.at).slice(11, 16)}.`, url: cmDate, tag: `moment-${text(d.moment_id)}` };
+    case 'receipt': {
+      const first = text(d.cm_name).split(' ')[0] || 'Una CM';
+      const label = text(d.label) || 'un gasto';
+      return d.created
+        ? { title: `${first} cargó un Uber`, body: `${ars(Number(d.amount_cents) || 0)} · ${label} · ${name}. Revisalo y decidí quién lo absorbe.`, url: detail, tag: `receipt-${coverageId}-${first}` }
+        : { title: `${first} subió un comprobante`, body: `${label} de ${name}.`, url: detail, tag: `receipt-${coverageId}-${first}` };
+    }
   }
 }

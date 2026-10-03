@@ -10,6 +10,7 @@ import { Meter, StoryBars, cap, flash, shortDay, untilLabel } from './ui';
 import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
 import { ReceiptControl } from './receipt-control';
+import { CmUbers } from './cm-ubers';
 import { MapPreview } from './map-preview';
 import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
@@ -140,7 +141,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const open = openId ? home.dates.find(d => d.id === openId) : undefined;
   if (openId) return <>{header}<Main className="cm-page space-y-5">
     <button type="button" className="back-link" onClick={closeDate}><ArrowLeft size={17}/> Mis fechas</button>
-    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick} preview={preview}/>
+    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick} preview={preview} ubers={home.concepts.filter(c => c.kind === 'expense' && c.coverage_id === open.id)} reload={() => void load()}/>
       : <div className="card p-5"><p className="font-bold">Esta fecha ya no está en tu agenda.</p><p className="muted mt-1 text-sm">Puede que Dafne la haya cambiado o quitado.</p></div>}
   </Main></>;
 
@@ -230,8 +231,8 @@ function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
 }
 
 /** La fecha completa: la entrada y, abajo, el mapa, la respuesta, el equipo y el contenido. */
-function DateCard({ d, now, busy, answer, tick, preview = false }: {
-  d: CmDate; now: string; busy: string; preview?: boolean;
+function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }: {
+  d: CmDate; now: string; busy: string; preview?: boolean; ubers: Concept[]; reload: () => void;
   answer: (d: CmDate, value: 'confirmada' | 'rechazada') => Promise<void>;
   tick: (d: CmDate, item: Item, checked: boolean) => Promise<void>;
 }) {
@@ -259,6 +260,7 @@ function DateCard({ d, now, busy, answer, tick, preview = false }: {
       {!!d.schedule?.length && <div><p className="text-sm font-bold">Cronograma de la noche</p><ol className="schedule-list mt-2">{d.schedule.map(m => <li key={m.id}><time>{time(m.at)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify && d.event_status === 'pendiente' && d.confirmation !== 'rechazada' && <span className="schedule-bell" title="Te llega un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Te avisamos 10 minutos antes</span></span>}</li>)}</ol></div>}
       {d.team.length > 0 && <div><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
       {/^https:\/\//i.test(d.drive_url ?? '') && d.confirmation !== 'rechazada' && d.event_status !== 'cancelado' && <a className="drive-link" href={d.drive_url} target="_blank" rel="noopener noreferrer"><FolderUp size={20} aria-hidden="true"/><span className="min-w-0 flex-1"><span className="block font-bold">Subí el contenido acá</span><span className="block truncate text-sm opacity-80">Carpeta de Drive de esta fiesta</span></span></a>}
+      <CmUbers coverageId={d.id} ubers={ubers} canAdd={d.confirmation === 'confirmada' && d.event_status !== 'cancelado'} preview={preview} onChange={reload}/>
       {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
     </div>
   </article>;

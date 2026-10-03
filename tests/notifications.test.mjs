@@ -101,3 +101,13 @@ test('todos los tipos de aviso tienen texto', async () => {
   const { KINDS } = await import('../src/lib/notifications.ts');
   for (const kind of KINDS) assert.ok(buildMessage({ kind, data: coverage, for_coordinator: false }).title, kind);
 });
+
+test('la CM carga un Uber o sube un comprobante: aviso a Dafne', () => {
+  const created = buildMessage({ kind: 'receipt', data: { ...coverage, cm_name: 'Isis Villalba', label: 'Uber de ida', amount_cents: 1350000, created: true }, for_coordinator: true });
+  assert.equal(created.title, 'Isis cargó un Uber');
+  assert.match(created.body, /^\$\s13\.500 · Uber de ida · Cumple de Martina\./);
+  assert.equal(created.url, '/coberturas/cov-1');
+  const attached = buildMessage({ kind: 'receipt', data: { ...coverage, cm_name: 'Isis Villalba', label: 'Uber de vuelta', created: false }, for_coordinator: true });
+  assert.equal(attached.title, 'Isis subió un comprobante');
+  assert.equal(attached.body, 'Uber de vuelta de Cumple de Martina.');
+});
