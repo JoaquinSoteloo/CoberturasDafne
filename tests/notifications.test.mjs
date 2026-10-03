@@ -56,3 +56,48 @@ test('con hora de llegada, el recordatorio de la CM dice a qué hora llegar', ()
   assert.equal(buildMessage({ kind: 'reminder', data, for_coordinator: true }, '2026-10-09').body, 'sábado, 10 de octubre a las 21:00 en Eclipse. Las CM llegan 20:30.');
   assert.match(buildMessage({ kind: 'assigned', data, for_coordinator: false }).body, /Llegada 20:30\. Entrá para confirmarla\.$/);
 });
+
+test('cambio de fecha u horario para la CM', () => {
+  const hour = buildMessage({ kind: 'changed', data: { ...coverage, starts_at: '2026-10-10T22:00:00', old_starts_at: '2026-10-10T21:00:00' }, for_coordinator: false });
+  assert.equal(hour.title, 'Cambió el horario: Cumple de Martina');
+  assert.equal(hour.body, 'Ahora es el sábado, 10 de octubre a las 22:00 en Eclipse. Antes era el sábado, 10 de octubre a las 21:00.');
+  assert.equal(hour.url, '/?fecha=cov-1');
+  const day = buildMessage({ kind: 'changed', data: { ...coverage, old_starts_at: '2026-10-09T21:00:00' }, for_coordinator: false });
+  assert.equal(day.title, 'Cambió la fecha: Cumple de Martina');
+  const arrive = buildMessage({ kind: 'changed', data: { ...coverage, arrive_at: '2026-10-10T20:00:00', old_starts_at: '2026-10-10T21:00:00', old_arrive_at: '2026-10-10T20:30:00' }, for_coordinator: false });
+  assert.equal(arrive.title, 'Cambió la hora de llegada: Cumple de Martina');
+  assert.equal(arrive.body, 'Ahora llegás a las 20:00. Antes: 20:30.');
+});
+
+test('fiesta cancelada, borrada o la CM fuera del equipo', () => {
+  const cancelled = buildMessage({ kind: 'cancelled', data: coverage, for_coordinator: false });
+  assert.equal(cancelled.title, 'Se canceló Cumple de Martina');
+  assert.equal(cancelled.url, '/?fecha=cov-1');
+  // Si se borró, ya no está en su agenda.
+  assert.equal(buildMessage({ kind: 'cancelled', data: { ...coverage, deleted: true }, for_coordinator: false }).url, '/');
+  const removed = buildMessage({ kind: 'removed', data: coverage, for_coordinator: false });
+  assert.equal(removed.title, 'Ya no cubrís Cumple de Martina');
+  assert.equal(removed.url, '/');
+});
+
+test('CM que no contestó: a ella y a Dafne', () => {
+  const data = { ...coverage, cm_name: 'Lucía Fernández' };
+  const forDafne = buildMessage({ kind: 'unanswered', data, for_coordinator: true });
+  assert.equal(forDafne.title, 'Lucía todavía no contestó');
+  assert.equal(forDafne.url, '/coberturas/cov-1');
+  const forCm = buildMessage({ kind: 'unanswered', data, for_coordinator: false });
+  assert.equal(forCm.title, '¿Podés cubrir Cumple de Martina?');
+  assert.equal(forCm.url, '/?fecha=cov-1');
+});
+
+test('momento de la noche, 10 minutos antes', () => {
+  const m = buildMessage({ kind: 'moment', data: { ...coverage, moment_id: 'mo-1', label: 'Vals', at: '2026-10-11T00:30:00' }, for_coordinator: false });
+  assert.equal(m.title, 'En 10 minutos: Vals');
+  assert.equal(m.body, 'Cumple de Martina, a las 00:30.');
+  assert.equal(m.tag, 'moment-mo-1');
+});
+
+test('todos los tipos de aviso tienen texto', async () => {
+  const { KINDS } = await import('../src/lib/notifications.ts');
+  for (const kind of KINDS) assert.ok(buildMessage({ kind, data: coverage, for_coordinator: false }).title, kind);
+});

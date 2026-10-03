@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { newId } from '@/lib/repository';
 import { dayKey } from '@/lib/calendar';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell } from 'lucide-react';
 import { CoverageForm } from '@/components/coverage-form';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
@@ -14,10 +14,11 @@ import { tripSummary } from '@/lib/trip';
 import { MapPreview } from '@/components/map-preview';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
+import { reinsert } from '@/lib/undo';
 import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal, overCollected } from '@/lib/domain';
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
-  const {id}=use(params); const {db,ready,update,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|null>(null);
+  const {id}=use(params); const {db,ready,update,undoable,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
   const c=db.coverages.find(x=>x.id===id);
   if(!ready) return <p className="muted">Cargando cobertura…</p>;
   if(!c) return <div><Link href="/coberturas" className="text-link">Volver a coberturas</Link><h1 className="page-title mt-5">Cobertura no encontrada</h1></div>;
@@ -26,6 +27,13 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     const remainder=Math.max(0,expense.amountCents-conceptPaid(db,`expense:${expenseId}`));
     return {...db,coverages:db.coverages.map(x=>x.id===id?{...x,expenses:x.expenses.map(e=>e.id===expenseId?{...e,paymentStatus:'pagado' as const}:e)}:x),cmPayments:expense.advancedBy==='cm'&&expense.advancedCmId&&remainder>0?[...db.cmPayments,{id:newId(),cmId:expense.advancedCmId,date:dayKey(new Date()),allocations:[{conceptId:`expense:${expenseId}`,amountCents:remainder}],notes:'Pago de Uber registrado en la cobertura'}]:db.cmPayments};
   });toast.success('Uber marcado como pagado')};
+  // Un gasto sin pagos se borra al toque, con unos segundos para deshacerlo.
+  const removeExpense=(expenseId:string)=>{
+    const index=c.expenses.findIndex(x=>x.id===expenseId);const expense=c.expenses[index];if(!expense)return;
+    undoable(`Borraste "${expense.label}"`,
+      db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.filter(x=>x.id!==expenseId)}:row)}),
+      db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:reinsert(row.expenses,expense,index)}:row)}));
+  };
   const confirmCm=(assignmentId:string)=>{update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,assignments:row.assignments.map(x=>x.id===assignmentId?{...x,confirmation:'confirmada'}:x)}:row)}));flash();toast.success('CM confirmada')};
   const toggleItem=(itemId:string,done:boolean)=>{
     const willComplete=done&&c.checklist.every(item=>item.id===itemId||item.done);
@@ -69,11 +77,13 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           <div className="step-body">
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
             {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><label className="checklist-action"><input type="checkbox" checked={x.done} onChange={e=>toggleItem(x.id,e.target.checked)}/><span className={x.done?'completed-task':''}>{x.text}</span></label></li>)}</ul></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
+            <div className="sub-head mt-6"><h3>Cronograma</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('schedule')}><Pencil size={15}/> {c.schedule.length?'Editar':'Armar'} cronograma</button></div>
+            {c.schedule.length?<ol className="schedule-list">{[...c.schedule].sort((a,b)=>a.at.localeCompare(b.at)).map(m=><li key={m.id}><time>{m.at.slice(11,16)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify&&<span className="schedule-bell" title="Las CM reciben un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Con aviso</span></span>}</li>)}</ol>:<p className="muted text-sm">Los momentos de la noche con su hora: entrada, vals, torta. Las CM los ven en su fecha.</p>}
             <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Cargar gastos</button></div>
             <div className="mb-3"><UberFromReceipt coverage={c}/></div>
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
               <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span>{tripSummary(e)&&<span className="block text-sm">{tripSummary(e)}</span>}<span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
-              <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}</span>
+              <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&(paid?<span className="badge badge-success">Pagado</span>:<button className="btn btn-secondary btn-small" onClick={()=>markUberPaid(e.id)}>Marcar pagado</button>)}{conceptPaid(db,`expense:${e.id}`)===0&&<button type="button" className="btn btn-quiet btn-small !px-2" aria-label={`Borrar ${e.label}`} onClick={()=>removeExpense(e.id)}><Trash2 size={16}/></button>}</span>
               <span className="receipt-row"><ReceiptControl expenseId={e.id} path={e.receiptPath} disabledReason={saveState==='saved'?undefined:'Se puede adjuntar cuando terminen de guardarse los cambios.'} onChange={path=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.map(x=>x.id===e.id?{...x,receiptPath:path??undefined}:x)}:row)}))}/></span>
             </li>})}</ul>}
           </div>
@@ -108,6 +118,6 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
         </div>
       </aside>
     </div>
-    {editing&&<Modal title={{event:'Datos del evento',team:'Equipo de la cobertura',expenses:'Gastos y traslados',content:'Contenido y entrega'}[editing]} onClose={()=>setEditing(null)}><CoverageForm section={editing} initial={c} onDone={()=>setEditing(null)}/></Modal>}
+    {editing&&<Modal title={{event:'Datos del evento',team:'Equipo de la cobertura',expenses:'Gastos y traslados',content:'Contenido y entrega',schedule:'Cronograma de la noche'}[editing]} onClose={()=>setEditing(null)}><CoverageForm section={editing} initial={c} onDone={()=>setEditing(null)}/></Modal>}
   </div>;
 }

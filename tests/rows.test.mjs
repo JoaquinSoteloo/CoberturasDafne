@@ -101,3 +101,14 @@ test('la ubicación del salón va y vuelve; sin ubicación queda sin coordenadas
   assert.equal(toRows(db).salons[0].lat, null);
   assert.equal('lat' in fromRows(toRows(db)).salons[0], false);
 });
+
+test('el cronograma viaja como filas propias, con su orden', () => {
+  const db = createSeed();
+  const rows = toRows(db);
+  assert.deepStrictEqual(rows.schedule_items.map(r => [r.id, r.coverage_id, r.label, r.notify, r.position]),
+    [['mo-1', 'cov-1', 'Entrada', true, 0], ['mo-2', 'cov-1', 'Vals', true, 1]]);
+  const next = { ...db, coverages: db.coverages.map(c => c.id === 'cov-1' ? { ...c, schedule: c.schedule.filter(m => m.id !== 'mo-1') } : c) };
+  const { changes } = diff(snapshotOf(db), next);
+  assert.deepStrictEqual(changes.delete, { schedule_items: ['mo-1'] });
+  assert.deepStrictEqual(changes.upsert.schedule_items.map(r => [r.id, r.position]), [['mo-2', 0]]);
+});

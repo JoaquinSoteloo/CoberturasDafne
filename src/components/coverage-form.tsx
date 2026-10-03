@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useStore } from './store';
 import { MoneyField } from './ui';
@@ -11,13 +11,17 @@ import { ars } from '@/lib/money';
 import { collected, conceptPaid, expectedIncome, expenseIsPaid } from '@/lib/domain';
 import { newChecklistItems, parseChecklistIdeas } from '@/lib/checklist';
 import { tripTimestamp } from '@/lib/trip';
-import { arriveAtFor, endsAtFor } from '@/lib/calendar';
-import type { Coverage, Expense } from '@/lib/types';
+import { arriveAtFor, endsAtFor, momentAtFor } from '@/lib/calendar';
+import { reinsert } from '@/lib/undo';
+import type { Coverage, Db, Expense } from '@/lib/types';
+
+/** Momentos que se agregan con un toque. */
+const MOMENTS = ['Entrada', 'Recepción', 'Vals', 'Brindis', 'Torta', 'Carioca', 'Fin de fiesta'];
 
 const localNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T20:00`; };
-const blank = (salonId: string, address: string): Coverage => ({ id: newId(), name:'', partyType:'', client:'', salonId, address, startsAt:localNow(), endsAt:'', arriveAt:'', notes:'', assignments:[], agreedCents:0, expenses:[], checklist:[], driveUrl:'', deliveredPieces:0, deliveryNotes:'', eventStatus:'pendiente', deliveryStatus:'pendiente' });
-export function CoverageForm({ initial, onDone, defaultDate, section }: { initial?: Coverage; onDone?: () => void; defaultDate?: string; section?: 'event'|'team'|'expenses'|'content' }) {
-  const { db, update } = useStore(); const router = useRouter();
+const blank = (salonId: string, address: string): Coverage => ({ id: newId(), name:'', partyType:'', client:'', salonId, address, startsAt:localNow(), endsAt:'', arriveAt:'', notes:'', assignments:[], agreedCents:0, expenses:[], checklist:[], schedule:[], driveUrl:'', deliveredPieces:0, deliveryNotes:'', eventStatus:'pendiente', deliveryStatus:'pendiente' });
+export function CoverageForm({ initial, onDone, defaultDate, section }: { initial?: Coverage; onDone?: () => void; defaultDate?: string; section?: 'event'|'team'|'expenses'|'content'|'schedule' }) {
+  const { db, update, undoable } = useStore(); const router = useRouter();
   const [form, setForm] = useState<Coverage>(() => initial ? {...structuredClone(initial), expenses:initial.expenses.map(x=>({...x,paymentStatus:expenseIsPaid(db,x)?'pagado':'pendiente'}))} : {...blank(db.salons[0]?.id || '', ''),...(defaultDate?{startsAt:defaultDate+'T20:00'}:{})});
   const [error, setError] = useState(''); const [ideas, setIdeas] = useState('');
   const change = <K extends keyof Coverage>(key: K, value: Coverage[K]) => setForm(f => ({ ...f, [key]: value }));
@@ -31,20 +35,29 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     if (form.expenses.some(x => x.advancedBy === 'cm' && !form.assignments.some(a => a.cmId === x.advancedCmId))) { setError('Cada gasto adelantado por una CM debe corresponder a una CM asignada.'); return; }
     if (initial?.assignments.some(old => { const current=form.assignments.find(x=>x.id===old.id); const paid=conceptPaid(db,`fee:${old.id}`); return paid>0 && (!current || current.cmId!==old.cmId || current.feeCents<paid); })) { setError('No podés quitar o cambiar una asignación ya liquidada, ni reducir su honorario por debajo de lo pagado.'); return; }
     if (initial?.expenses.some(old => { const current=form.expenses.find(x=>x.id===old.id); const paid=conceptPaid(db,`expense:${old.id}`); return paid>0 && (!current || current.advancedBy!=='cm' || current.advancedCmId!==old.advancedCmId || current.amountCents<paid); })) { setError('No podés quitar o cambiar un reintegro ya liquidado, ni reducirlo por debajo de lo pagado.'); return; }
+    if (form.schedule.some(m => !m.label.trim() || !m.at)) { setError('Cada momento del cronograma necesita un nombre y una hora.'); return; }
     if (form.deliveryStatus === 'entregada' && !form.driveUrl.trim() && !form.deliveredPieces) { setError('Para marcar la entrega, cargá un link de Drive o la cantidad de piezas.'); return; }
     setError('');
     if (form.expenses.some(x=>x.kind==='uber' && x.paymentStatus==='pendiente' && conceptPaid(db,`expense:${x.id}`)>=x.amountCents)) { setError('Este Uber ya fue liquidado. No se puede marcar como pendiente sin ajustar el pago registrado.'); return; }
-    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
+    const cleaned = { ...form, name:form.name.trim(), client:form.client.trim(), partyType:form.partyType.trim(), address:form.address.trim(), notes:form.notes.trim(), schedule:form.schedule.map(m=>({...m,label:m.label.trim()})).sort((a,b)=>a.at.localeCompare(b.at)), checklist:[...form.checklist,...newChecklistItems(ideas,form.checklist,newId)] };
     // Lo que pasó con la primera fiesta: el acordado se bajó después de registrar el cobro.
     if (initial && expectedIncome(cleaned) < collected(db, cleaned.id) && !confirm(`Ya registraste cobros por ${ars(collected(db, cleaned.id))} y lo acordado queda en ${ars(expectedIncome(cleaned))}. Si el cobro fue por el monto viejo, después corregilo desde Pagos. ¿Guardar igual?`)) return;
-    update(db => {
+    const apply = (db: Db) => {
       const settlements=form.expenses.filter(x=>x.kind==='uber'&&x.paymentStatus==='pagado'&&x.advancedBy==='cm'&&x.advancedCmId).flatMap(x=>{
         const remainder=x.amountCents-conceptPaid(db,`expense:${x.id}`);
         return remainder>0?[{id:newId(),cmId:x.advancedCmId!,date:localNow().slice(0,10),allocations:[{conceptId:`expense:${x.id}`,amountCents:remainder}],notes:'Pago de Uber registrado desde la cobertura'}]:[];
       });
       return {...db,coverages:initial?db.coverages.map(c=>c.id===initial.id?cleaned:c):[...db.coverages,cleaned],cmPayments:[...db.cmPayments,...settlements]};
-    });
-    toast.success('Cambios guardados');
+    };
+    // Si se quitaron gastos, unos segundos para recuperarlos.
+    const removed = (initial?.expenses ?? []).map((x, index) => ({ x, index })).filter(({ x }) => !cleaned.expenses.some(y => y.id === x.id));
+    if (initial && removed.length) {
+      undoable(removed.length === 1 ? `Guardado. Borraste "${removed[0].x.label}"` : `Guardado. Borraste ${removed.length} gastos`, apply,
+        db => ({...db,coverages:db.coverages.map(c=>c.id===initial.id?{...c,expenses:removed.reduce((list,{x,index})=>reinsert(list,x,index),c.expenses)}:c)}));
+    } else {
+      update(apply);
+      toast.success('Cambios guardados');
+    }
     if (onDone) onDone(); else router.push(`/coberturas/${form.id}`);
   };
   const addAssignment = () => {
@@ -53,6 +66,23 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
     change('assignments', [...form.assignments, { id:newId(), cmId:cm.id, feeCents:cm.usualFeeCents, confirmation:'pendiente' }]);
   };
   const addExpense = (kind: Expense['kind']) => change('expenses', [...form.expenses, { id:newId(), label:kind === 'uber' ? 'Uber de ida' : 'Otro gasto', kind, amountCents:0, ...(kind==='uber'?{paymentStatus:'pendiente' as const}:{advancedBy:'coordinadora' as const}), absorbedBy:'coordinadora' }]);
+  const addMoment = (label = '') => change('schedule', [...form.schedule, { id:newId(), at:'', label, notify:false }]);
+  const setMoment = (id: string, patch: Partial<Coverage['schedule'][number]>) => change('schedule', form.schedule.map(m => m.id === id ? { ...m, ...patch } : m));
+  // Borrar la fiesta entera. Con cobros o pagos registrados no se puede: primero se anulan.
+  const deleteCoverage = () => {
+    if (!initial) return;
+    const concepts = new Set([...initial.assignments.map(a => `fee:${a.id}`), ...initial.expenses.map(x => `expense:${x.id}`)]);
+    if (db.collections.some(x => x.coverageId === initial.id) || db.cmPayments.some(p => p.allocations.some(a => concepts.has(a.conceptId)))) {
+      setError('Esta fiesta tiene cobros o pagos registrados. Para borrarla, primero anulalos en Pagos. Si no se hizo, también podés marcarla como cancelada.'); return;
+    }
+    const warned = initial.assignments.some(a => a.confirmation !== 'rechazada');
+    if (!confirm(`¿Borrar "${initial.name}"?${warned ? ' A las CM asignadas les llega un aviso de que se canceló.' : ''}`)) return;
+    const index = db.coverages.findIndex(c => c.id === initial.id), current = db.coverages[index];
+    if (!current) return;
+    onDone?.(); router.push('/coberturas');
+    undoable(`Borraste "${current.name}"`, db => ({ ...db, coverages: db.coverages.filter(c => c.id !== current.id) }),
+      db => ({ ...db, coverages: reinsert(db.coverages, current, index) }), () => router.push(`/coberturas/${current.id}`));
+  };
   const addIdeas = () => { const items = newChecklistItems(ideas,form.checklist,newId); if (items.length) change('checklist',[...form.checklist,...items]); setIdeas(''); };
   return <form onSubmit={save} className="space-y-7">
     {(!section||section==='event')&&<section className="grid gap-4 sm:grid-cols-2"><h3 className="section-title sm:col-span-2">Datos del evento</h3>
@@ -60,12 +90,13 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
       <label><span className="label">Tipo de fiesta · opcional</span><input className="field" value={form.partyType} onChange={e => change('partyType',e.target.value)} placeholder="Ej. boda, 15 años"/></label>
       <label><span className="label">Cliente · opcional</span><input className="field" value={form.client} onChange={e => change('client',e.target.value)}/></label>
       <label><span className="label">Salón *</span><select className="field" value={form.salonId} onChange={e => { const s=db.salons.find(x=>x.id===e.target.value); setForm(f=>({...f,salonId:e.target.value,address:s?.address||f.address})); }}>{db.salons.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16)),arriveAt:arriveAtFor(startsAt,f.arriveAt.slice(11,16))})); }} required/></label>
+      <label><span className="label">Fecha y hora *</span><input className="field" type="datetime-local" value={form.startsAt} onChange={e => { const startsAt=e.target.value; setForm(f=>({...f,startsAt,endsAt:endsAtFor(startsAt,f.endsAt.slice(11,16)),arriveAt:arriveAtFor(startsAt,f.arriveAt.slice(11,16)),schedule:f.schedule.map(m=>({...m,at:momentAtFor(startsAt,m.at.slice(11,16))}))})); }} required/></label>
       <label><span className="label">Llegada de las CM · opcional</span><input className="field" type="time" value={form.arriveAt.slice(11,16)} onChange={e => change('arriveAt',arriveAtFor(form.startsAt,e.target.value))}/><span className="muted mt-2 block text-sm">Si las CM tienen que llegar antes. La usan el aviso del día anterior y su calendario.</span></label>
       <label><span className="label">Termina · opcional</span><input className="field" type="time" value={form.endsAt.slice(11,16)} onChange={e => change('endsAt',endsAtFor(form.startsAt,e.target.value))}/><span className="muted mt-2 block text-sm">Si termina de madrugada, se toma como el día siguiente.</span></label>
       <label className="sm:col-span-2"><span className="label">Observaciones</span><textarea className="field" value={form.notes} onChange={e => change('notes',e.target.value)}/><span className="muted mt-2 block text-sm">Las ven las CM asignadas a esta fiesta.</span></label>
       <label><span className="label">Estado del evento</span><select className="field" value={form.eventStatus} onChange={e => change('eventStatus',e.target.value as Coverage['eventStatus'])}><option value="pendiente">Pendiente</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select></label>
       <MoneyField label="Importe acordado con el salón" value={form.agreedCents} onChange={v => change('agreedCents',v)}/>
+      {initial&&<div className="sm:col-span-2"><button type="button" className="btn btn-quiet btn-small text-[var(--danger)]" onClick={deleteCoverage}><Trash2 size={15}/> Borrar esta fiesta</button></div>}
     </section>}
     {(!section||section==='team')&&<section><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="section-title">CM asignadas</h3><button type="button" className="btn btn-secondary" onClick={addAssignment}><Plus size={17}/> Asignar CM</button></div>
       {!form.assignments.length && <p className="muted text-sm">Todavía no hay CM asignadas.</p>}
@@ -74,6 +105,15 @@ export function CoverageForm({ initial, onDone, defaultDate, section }: { initia
         <MoneyField label="Honorario acordado" value={a.feeCents} onChange={v => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,feeCents:v}:x))}/>
         <button type="button" aria-label="Quitar CM" className="btn btn-danger self-end" onClick={() => { if (confirm('¿Quitar esta CM de la cobertura?')) change('assignments',form.assignments.filter(x=>x.id!==a.id)); }}><Trash2 size={18}/></button>
       </div><label className="mt-3 block"><span className="label">Confirmación</span><select className="field" value={a.confirmation} onChange={e => change('assignments',form.assignments.map(x=>x.id===a.id?{...x,confirmation:e.target.value as typeof a.confirmation}:x))}><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada</option><option value="rechazada">Rechazada</option></select></label></div>)}</div>
+    </section>}
+    {(!section||section==='schedule')&&<section><h3 className="section-title mb-1">Cronograma de la noche</h3><p className="muted mb-3 text-sm">Las CM lo ven ordenado en su fecha. Con la campanita, les llega un aviso 10 minutos antes.</p>
+      <div className="space-y-2">{form.schedule.map(m=><div key={m.id} className="schedule-row">
+        <input className="field schedule-time" type="time" aria-label={`Hora de ${m.label||'este momento'}`} value={m.at.slice(11,16)} onChange={e=>setMoment(m.id,{at:momentAtFor(form.startsAt,e.target.value)})} required/>
+        <input className="field min-w-0 flex-1" aria-label="Momento" placeholder="Ej. Vals" value={m.label} onChange={e=>setMoment(m.id,{label:e.target.value})} required/>
+        <label className={`schedule-notify ${m.notify?'is-on':''}`} title="Avisar a las CM 10 minutos antes"><input type="checkbox" className="sr-only" checked={m.notify} onChange={e=>setMoment(m.id,{notify:e.target.checked})}/><Bell size={17} aria-hidden="true"/><span className="sr-only">Avisar 10 minutos antes</span></label>
+        <button type="button" aria-label={`Quitar ${m.label||'momento'}`} className="btn btn-quiet !px-2" onClick={()=>change('schedule',form.schedule.filter(x=>x.id!==m.id))}><Trash2 size={17}/></button>
+      </div>)}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{MOMENTS.filter(label=>!form.schedule.some(m=>m.label.trim().toLowerCase()===label.toLowerCase())).map(label=><button key={label} type="button" className="btn btn-secondary btn-small" onClick={()=>addMoment(label)}><Plus size={15}/> {label}</button>)}<button type="button" className="btn btn-quiet btn-small" onClick={()=>addMoment()}><Plus size={15}/> Otro</button></div>
     </section>}
     {(!section||section==='expenses')&&<section><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="section-title">Gastos y traslados</h3><div className="flex gap-2"><button type="button" className="btn btn-secondary" onClick={() => addExpense('uber')}>+ Uber</button><button type="button" className="btn btn-secondary" onClick={() => addExpense('otro')}>+ Otro</button></div></div>
       {!form.expenses.length && <p className="muted text-sm">Sin gastos registrados.</p>}

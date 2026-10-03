@@ -17,6 +17,17 @@ export function endsAtFor(startsAt: string, time: string): string {
   return `${dayKey(next)}T${time}`;
 }
 
+/**
+ * Hora de un momento del cronograma: cae entre 6 horas antes y 18 después del inicio
+ * (21:00 → 20:30 el mismo día, 02:00 el día siguiente; 00:30 → 23:45 el día anterior).
+ */
+export function momentAtFor(startsAt: string, time: string): string {
+  if (!time || !startsAt) return '';
+  const start = new Date(startsAt).getTime(), hour = 3600_000;
+  return [-1, 0, 1].map(offset => { const d = new Date(`${startsAt.slice(0, 10)}T12:00`); d.setDate(d.getDate() + offset); return `${dayKey(d)}T${time}`; })
+    .find(v => { const diff = new Date(v).getTime() - start; return diff >= -6 * hour && diff < 18 * hour; }) ?? '';
+}
+
 /** Hora de llegada de las CM: el día que la deja más cerca del inicio (21:00 → 20:30 el mismo día; 00:30 → 23:45 el día anterior). */
 export function arriveAtFor(startsAt: string, time: string): string {
   if (!time || !startsAt) return '';

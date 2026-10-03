@@ -6,7 +6,7 @@ import type { Db, Expense } from './types';
  * filas que cambiaron desde el último guardado confirmado.
  */
 
-export const TABLES = ['salons', 'cms', 'coverages', 'assignments', 'expenses', 'checklist_items', 'collections', 'cm_payments'] as const;
+export const TABLES = ['salons', 'cms', 'coverages', 'assignments', 'expenses', 'checklist_items', 'schedule_items', 'collections', 'cm_payments'] as const;
 export type Table = typeof TABLES[number];
 export type Row = { id: string } & Record<string, unknown>;
 export type Rows = Record<Table, Row[]>;
@@ -51,6 +51,7 @@ export function toRows(db: Db): Rows {
       trip_from: e.tripFrom || null, trip_to: e.tripTo || null, trip_started_at: e.tripStartedAt || null, trip_ended_at: e.tripEndedAt || null
     }))),
     checklist_items: db.coverages.flatMap(c => c.checklist.map((x, position) => ({ id: x.id, coverage_id: c.id, text: x.text, done: x.done, position }))),
+    schedule_items: db.coverages.flatMap(c => c.schedule.map((m, position) => ({ id: m.id, coverage_id: c.id, at: m.at, label: m.label, notify: m.notify, position }))),
     collections: db.collections.map(p => ({ id: p.id, coverage_id: p.coverageId, date: p.date, amount_cents: p.amountCents, notes: p.notes })),
     cm_payments: db.cmPayments.map(p => ({
       id: p.id, cm_id: p.cmId, date: p.date, notes: p.notes,
@@ -74,6 +75,7 @@ export function fromRows(rows: Rows): Db {
   const assignments = groupBy(rows.assignments, 'coverage_id');
   const expenses = groupBy(rows.expenses, 'coverage_id');
   const checklist = groupBy(rows.checklist_items, 'coverage_id');
+  const schedule = groupBy(rows.schedule_items, 'coverage_id');
   return {
     version: 1,
     salons: rows.salons.map(s => ({ id: s.id, name: str(s.name), address: str(s.address), ...(s.lat != null && s.lng != null ? { lat: Number(s.lat), lng: Number(s.lng) } : {}) })),
@@ -96,7 +98,8 @@ export function fromRows(rows: Rows): Db {
         if (e.trip_ended_at) expense.tripEndedAt = minutes(e.trip_ended_at);
         return expense;
       }),
-      checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) }))
+      checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done) })),
+      schedule: (schedule.get(c.id) ?? []).map(m => ({ id: m.id, at: minutes(m.at), label: str(m.label), notify: Boolean(m.notify) }))
     })),
     collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes) })),
     cmPayments: rows.cm_payments.map(p => ({

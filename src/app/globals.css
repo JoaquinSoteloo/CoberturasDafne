@@ -516,3 +516,17 @@ button.back-link{background:none;border:0;padding:0;cursor:pointer}
 .cm-status-muted{background:var(--sunken);color:var(--muted)}
 .cm-to-answer{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:14px;border-radius:18px;background:var(--flash-soft);border:1.5px solid var(--flash)}
 .cm-to-answer h2{color:var(--warn-text)}
+/* Cronograma de la noche */
+.schedule-list{display:grid;gap:0;list-style:none;margin:0;padding:0}
+.schedule-list li{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1.5px dotted var(--line)}
+.schedule-list li:last-child{border-bottom:0}
+.schedule-list time{font-weight:800;font-variant-numeric:tabular-nums;min-width:3.2em;color:var(--accent-text)}
+.schedule-bell{display:inline-flex;color:var(--warn-text)}
+.schedule-row{display:flex;align-items:center;gap:8px}
+.schedule-time{width:7.5em;flex-shrink:0}
+.schedule-notify{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border-radius:12px;border:1.5px solid var(--line);color:var(--muted);cursor:pointer}
+.schedule-notify.is-on{background:var(--flash-soft);border-color:var(--flash);color:var(--warn-text)}
+.schedule-notify:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+/* "Ver como" una CM, dentro de la app de Dafne */
+.preview-banner{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:16px;background:var(--flash-soft);border:1.5px solid var(--flash);color:var(--warn-text);font-weight:700;font-size:14px}
+.cm-preview .cm-page{padding-top:16px}

@@ -1,7 +1,10 @@
+/** Los tipos de aviso que esta versión sabe escribir. El despachador le pide a la base solo estos. */
+export const KINDS = ['reminder', 'assigned', 'answered', 'paid', 'unpaid', 'undelivered', 'changed', 'cancelled', 'removed', 'unanswered', 'moment'] as const;
+
 /** Un aviso de la bandeja de salida, como lo devuelve pending_notifications. */
 export type Outgoing = {
   id: number;
-  kind: 'reminder' | 'assigned' | 'answered' | 'paid' | 'unpaid' | 'undelivered';
+  kind: typeof KINDS[number];
   data: Record<string, unknown>;
   for_coordinator: boolean;
   subscriptions: { endpoint: string; p256dh: string; auth: string }[];
@@ -51,5 +54,28 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
       return { title: `${salon || 'El salón'} todavía debe ${ars(Number(d.owed_cents) || 0)}`, body: `${name}: la fiesta fue hace ${Number(d.days) || 0} días.`, url: detail, tag: `unpaid-${coverageId}` };
     case 'undelivered':
       return { title: 'Falta entregar contenido', body: `${name}: la fiesta fue hace ${Number(d.days) || 0} días y todavía no está marcado como entregado.`, url: detail, tag: `undelivered-${coverageId}` };
+    case 'changed': {
+      const starts = text(d.starts_at), before = text(d.old_starts_at);
+      if (starts.slice(0, 16) !== before.slice(0, 16)) {
+        return { title: `Cambió ${starts.slice(0, 10) === before.slice(0, 10) ? 'el horario' : 'la fecha'}: ${name}`,
+          body: `Ahora es el ${when(starts)}${place}.${arriveNote} Antes era el ${when(before)}.`, url: cmDate, tag: `changed-${coverageId}` };
+      }
+      // Solo cambió la hora de llegada.
+      return { title: `Cambió la hora de llegada: ${name}`, body: `Ahora llegás a las ${arrive || starts.slice(11, 16)}. Antes: ${text(d.old_arrive_at).slice(11, 16) || before.slice(11, 16)}.`, url: cmDate, tag: `changed-${coverageId}` };
+    }
+    case 'cancelled':
+      // Si la fiesta se borró, ya no está en su agenda: el aviso abre el inicio.
+      return { title: `Se canceló ${name}`, body: `Era el ${when(text(d.starts_at))}${place}. Ya no tenés que ir.`, url: d.deleted ? '/' : cmDate, tag: `cancelled-${coverageId}` };
+    case 'removed':
+      return { title: `Ya no cubrís ${name}`, body: `Dafne cambió el equipo de la fiesta del ${when(text(d.starts_at))}. Ya no está en tu agenda.`, url: '/', tag: `removed-${coverageId}` };
+    case 'unanswered': {
+      if (n.for_coordinator) {
+        const first = text(d.cm_name).split(' ')[0] || 'Una CM';
+        return { title: `${first} todavía no contestó`, body: `${name} es el ${when(text(d.starts_at))}. Escribile para confirmar.`, url: detail, tag: `unanswered-${coverageId}-${first}` };
+      }
+      return { title: `¿Podés cubrir ${name}?`, body: `Es el ${when(text(d.starts_at))}${place} y todavía no contestaste. Entrá para confirmar o avisar que no podés.`, url: cmDate, tag: `unanswered-${coverageId}` };
+    }
+    case 'moment':
+      return { title: `En 10 minutos: ${text(d.label)}`, body: `${name}, a las ${text(d.at).slice(11, 16)}.`, url: cmDate, tag: `moment-${text(d.moment_id)}` };
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Clock, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { CalendarDays, Clock, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
@@ -17,12 +18,13 @@ import { CalendarSubscribe } from './calendar-subscribe';
 
 type Item = { id: string; text: string; done: boolean };
 type Mate = { name: string; phone: string; confirmation: string };
+type Moment = { id: string; at: string; label: string; notify: boolean };
 type CmDate = {
   id: string; name: string; party_type: string; client: string; salon: string; address: string;
   starts_at: string; ends_at: string | null; arrive_at: string | null; notes: string; event_status: 'pendiente' | 'realizado' | 'cancelado';
   lat: number | null; lng: number | null;
   assignment_id: string; confirmation: 'pendiente' | 'confirmada' | 'rechazada'; fee_cents: number;
-  checklist: Item[]; team: Mate[];
+  checklist: Item[]; schedule?: Moment[]; team: Mate[];
 };
 type Concept = { coverage_id: string; coverage_name: string; starts_at: string; kind: 'fee' | 'expense'; label: string; amount_cents: number; paid_cents: number; expense_id: string | null; receipt_path: string | null; trip_from: string | null; trip_to: string | null; trip_started_at: string | null; trip_ended_at: string | null };
 type Payment = { id: string; date: string; amount_cents: number };
@@ -45,8 +47,14 @@ function status(d: CmDate): { label: string; tone: 'warn' | 'ok' | 'danger' | 'm
 }
 const fechaInUrl = () => new URLSearchParams(window.location.search).get('fecha');
 
-/** Lo que ve una CM: sus fechas en un calendario, cada fecha en su pantalla, y sus pagos. */
-export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
+/**
+ * Lo que ve una CM: sus fechas en un calendario, cada fecha en su pantalla, y sus pagos.
+ * Con `previewCmId`, Dafne ve la pantalla de esa CM tal cual, sin poder tocar nada.
+ */
+export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<void>; previewCmId?: string }) {
+  const preview = !!previewCmId;
+  // Dentro de la app de Dafne ya hay un <main>.
+  const Main = preview ? 'div' : 'main';
   const [home, setHome] = useState<Home | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<'fechas' | 'pagos'>('fechas');
@@ -56,10 +64,10 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabaseBrowser().rpc('cm_home');
+    const { data, error } = previewCmId ? await supabaseBrowser().rpc('cm_home_as', { p_cm: previewCmId }) : await supabaseBrowser().rpc('cm_home');
     if (error || !data) { setFailed(true); return; }
     setHome(data as Home); setFailed(false);
-  }, []);
+  }, [previewCmId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState === 'visible') void load(); };
@@ -82,6 +90,7 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   };
 
   const act = async (key: string, run: () => PromiseLike<{ error: { message: string } | null }>, done: string, celebrate = false) => {
+    if (preview) return;
     setBusy(key);
     const { error } = await run();
     setBusy('');
@@ -94,19 +103,22 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
     () => supabaseBrowser().rpc('cm_set_confirmation', { p_assignment: d.assignment_id, p_value: value }),
     value === 'confirmada' ? 'Fecha confirmada' : 'Le avisamos a Dafne que no podés', value === 'confirmada');
   const tick = (d: CmDate, item: Item, checked: boolean) => {
+    if (preview) return Promise.resolve();
     const completes = checked && d.checklist.every(x => x.id === item.id || x.done);
     // Se ve tildado al instante; si falla, la recarga lo vuelve atrás.
     setHome(h => h && { ...h, dates: h.dates.map(x => x.id === d.id ? { ...x, checklist: x.checklist.map(i => i.id === item.id ? { ...i, done: checked } : i) } : x) });
     return act(item.id, () => supabaseBrowser().rpc('cm_set_checklist', { p_item: item.id, p_done: checked }), completes ? 'Contenido completo' : checked ? 'Tildado' : 'Destildado', completes);
   };
 
-  const header = <header className="cm-header">
-    <BrandMark/>
-    <div className="flex items-center gap-1"><PushToggle className="header-theme"/><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
-  </header>;
+  const header = preview
+    ? <div className="preview-banner" role="note"><Eye size={18} aria-hidden="true"/><p className="min-w-0 flex-1">Así ve la app {home ? home.name.split(' ')[0] : 'esta CM'}. Desde acá no se puede tocar nada.</p><Link href="/equipo" className="btn btn-secondary btn-small">Volver</Link></div>
+    : <header className="cm-header">
+      <BrandMark/>
+      <div className="flex items-center gap-1"><PushToggle className="header-theme"/><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut?.()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
+    </header>;
 
-  if (failed) return <>{header}<main className="cm-page text-center"><p className="font-bold">No pudimos cargar tus fechas.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet.</p><button className="btn btn-primary mt-4" onClick={() => void load()}>Reintentar</button></main></>;
-  if (!home) return <>{header}<main className="cm-page muted text-center text-sm">Cargando tus fechas…</main></>;
+  if (failed) return <>{header}<Main className="cm-page text-center"><p className="font-bold">No pudimos cargar tus fechas.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet.</p><button className="btn btn-primary mt-4" onClick={() => void load()}>Reintentar</button></Main></>;
+  if (!home) return <>{header}<Main className="cm-page muted text-center text-sm">Cargando tus fechas…</Main></>;
 
   const now = today();
   const upcoming = home.dates.filter(d => d.starts_at.slice(0, 10) >= now);
@@ -114,11 +126,11 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
 
   // ---------- Una fecha, en su pantalla ----------
   const open = openId ? home.dates.find(d => d.id === openId) : undefined;
-  if (openId) return <>{header}<main className="cm-page space-y-5">
+  if (openId) return <>{header}<Main className="cm-page space-y-5">
     <button type="button" className="back-link" onClick={closeDate}><ArrowLeft size={17}/> Mis fechas</button>
-    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick}/>
+    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick} preview={preview}/>
       : <div className="card p-5"><p className="font-bold">Esta fecha ya no está en tu agenda.</p><p className="muted mt-1 text-sm">Puede que Dafne la haya cambiado o quitado.</p></div>}
-  </main></>;
+  </Main></>;
 
   // ---------- Calendario y lista del mes ----------
   const shownMonth = month ?? (upcoming[0]?.starts_at.slice(0, 7) ?? now.slice(0, 7));
@@ -134,9 +146,8 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
   const moveMonth = (delta: number) => { setMonth(shiftMonth(shownMonth, delta)); setSelectedDay(null); };
   const pending = home.concepts.reduce((s, c) => s + Math.max(0, c.amount_cents - c.paid_cents), 0);
 
-  return <>{header}<main className="cm-page space-y-6">
-    <InstallHint/>
-    <PushPrompt forCm/>
+  return <>{header}<Main className="cm-page space-y-6">
+    {!preview && <><InstallHint/><PushPrompt forCm/></>}
     <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
 
     {toAnswer.length > 0 && <section className="cm-to-answer" aria-labelledby="to-answer-title">
@@ -175,15 +186,14 @@ export function CmHome({ onSignOut }: { onSignOut: () => Promise<void> }) {
           <span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
           <span className="min-w-0 flex-1"><span className="block font-bold">{c.coverage_name}</span><span className="muted block text-sm">{c.label}</span>{c.kind === 'expense' && tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at }) && <span className="block text-sm">{tripSummary({ tripFrom: c.trip_from, tripTo: c.trip_to, tripStartedAt: c.trip_started_at, tripEndedAt: c.trip_ended_at })}</span>}<Meter done={c.paid_cents} total={c.amount_cents} label={`Cobrado ${ars(c.paid_cents)} de ${ars(c.amount_cents)}`}/><span className="muted block text-sm">Cobraste {ars(c.paid_cents)} de {ars(c.amount_cents)}</span></span>
           <span className="ledger-amount">{owed > 0 ? ars(owed) : <span className="badge badge-success">Pagado</span>}</span>
-          {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()}/></span>}
+          {c.kind === 'expense' && c.expense_id && <span className="receipt-row"><ReceiptControl expenseId={c.expense_id} path={c.receipt_path} onChange={() => void load()} disabledReason={preview ? 'Solo para mirar.' : undefined}/></span>}
         </li>; })}</ul> : <p className="muted px-5 pb-5">Todavía no tenés honorarios cargados.</p>}
       </div>
       <section aria-labelledby="cm-payments-title"><h2 id="cm-payments-title" className="section-title mb-3">Pagos recibidos</h2>{home.payments.length ? <ul className="ledger card">{home.payments.map(p => { const day = shortDay(p.date); return <li key={p.id} className="ledger-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1 font-bold">Pago de Dafne</span><span className="ledger-amount">{ars(p.amount_cents)}</span></li>; })}</ul> : <p className="muted">Cuando Dafne te pague, el pago aparece acá.</p>}</section>
     </section>}
 
-    <CalendarSubscribe who="cm"/>
-    <ChangePassword/>
-  </main></>;
+    {!preview && <><CalendarSubscribe who="cm"/><ChangePassword/></>}
+  </Main></>;
 }
 
 /** Una línea por fiesta: día, nombre, hora y salón, y su estado. Abre la fecha. */
@@ -198,8 +208,8 @@ function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
 }
 
 /** La fecha completa: la entrada y, abajo, el mapa, la respuesta, el equipo y el contenido. */
-function DateCard({ d, now, busy, answer, tick }: {
-  d: CmDate; now: string; busy: string;
+function DateCard({ d, now, busy, answer, tick, preview = false }: {
+  d: CmDate; now: string; busy: string; preview?: boolean;
   answer: (d: CmDate, value: 'confirmada' | 'rechazada') => Promise<void>;
   tick: (d: CmDate, item: Item, checked: boolean) => Promise<void>;
 }) {
@@ -219,12 +229,13 @@ function DateCard({ d, now, busy, answer, tick }: {
     <div className="cm-date-body">
       {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
       {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
-        {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
-        {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Honorario {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
-        {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
+        {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
+        {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Honorario {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
+        {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
       </div>}
+      {!!d.schedule?.length && <div><p className="text-sm font-bold">Cronograma de la noche</p><ol className="schedule-list mt-2">{d.schedule.map(m => <li key={m.id}><time>{time(m.at)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify && d.event_status === 'pendiente' && d.confirmation !== 'rechazada' && <span className="schedule-bell" title="Te llega un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Te avisamos 10 minutos antes</span></span>}</li>)}</ol></div>}
       {d.team.length > 0 && <div><p className="text-sm font-bold">También cubren</p><ul className="cm-team">{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
-      {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
+      {d.checklist.length > 0 && <div><p className="text-sm font-bold">Contenido a cubrir</p><StoryBars items={d.checklist}/><ul className="mt-3 space-y-2">{d.checklist.map(item => <li key={item.id}><label className="checklist-action"><input type="checkbox" checked={item.done} disabled={preview || d.confirmation === 'rechazada' || busy === item.id} onChange={e => void tick(d, item, e.target.checked)}/><span className={item.done ? 'completed-task' : ''}>{item.text}</span></label></li>)}</ul></div>}
     </div>
   </article>;
 }

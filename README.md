@@ -14,7 +14,8 @@ Abrí `http://localhost:3000`. Para validar: `pnpm test`, `pnpm lint` y `pnpm bu
 ## Qué funciona
 
 - Inicio con alertas, próximas coberturas, saldos y resumen mensual.
-- Alta y edición de coberturas, asignaciones, confirmaciones, gastos, checklist y entrega.
+- Alta, edición y borrado de coberturas, asignaciones, confirmaciones, gastos, checklist, cronograma de la noche y entrega.
+- Al borrar una fiesta, un gasto o anular un pago o cobro, quedan unos segundos para tocar **Deshacer**. Mientras tanto no se guarda nada (`undoable` en `src/components/store.tsx`), así que si se deshace, la base y las CM nunca se enteran.
 - Equipo con honorario habitual, historial y saldos.
 - Cobros parciales y liquidaciones parciales a CM por conceptos pendientes. Las reglas de importes están en `src/lib/domain.ts`.
 - Ingreso con email y contraseña, y datos guardados en Supabase desde `src/lib/repository.ts`.
@@ -42,7 +43,9 @@ Configuración, una sola vez:
 
 **Comprobantes con IA (opcional).** En el detalle de una cobertura, "Cargar Uber desde comprobante" manda la captura o el PDF a OpenAI (`/api/receipt-scan`, solo para la coordinadora), que devuelve total, fecha, horarios y direcciones. Si es de ida o de vuelta lo decide la app (`src/lib/trip.ts`): por la dirección del salón o, si no, por el horario. Dafne siempre revisa y confirma antes de guardar. Requiere `OPENAI_API_KEY` en `.env.local` y en Vercel; sin ella, el botón avisa que falta configurarla.
 
-**Avisos (notificaciones push).** Cada persona los activa desde su celular ("Activar avisos"). En iPhone solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o posterior). Hay cuatro: recordatorio 24 horas antes de cada fiesta (Dafne y CM asignadas que no rechazaron), fecha nueva (a la CM), confirmación o rechazo (a Dafne) y pago registrado (a la CM). Los anota la base en `private.notification_outbox` (triggers y `enqueue_due_reminders`) y los manda `/api/push/dispatch`, que Supabase llama cada minuto con `pg_cron` (migración 0007). Requiere `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `CRON_SECRET` en Vercel, y en el Vault de Supabase los secretos `app_url` y `cron_secret`.
+**Avisos (notificaciones push).** Cada persona los activa desde su celular ("Activar avisos"). En iPhone solo funcionan con la app instalada en la pantalla de inicio (iOS 16.4 o posterior). Son: recordatorio 24 horas antes de cada fiesta (Dafne y CM asignadas que no rechazaron), fecha nueva, cambio de fecha u horario, fiesta cancelada o borrada, y "ya no cubrís esta fiesta" (a la CM), confirmación o rechazo (a Dafne), CM que no contestó cuando faltan 2 días (a las dos), cada momento del cronograma con campanita, 10 minutos antes (a la CM), pago registrado (a la CM), y cobros y entregas atrasados (a Dafne). Los anota la base en `private.notification_outbox` (triggers, `enqueue_due_reminders`, `enqueue_followups` y `enqueue_live`) y los manda `/api/push/dispatch`, que Supabase llama cada minuto con `pg_cron` (migración 0007). El despachador le pide a la base solo los tipos de aviso que sabe escribir (`KINDS` en `src/lib/notifications.ts`), y de paso borra los comprobantes que quedaron sin gasto (`orphan_receipts`). Requiere `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` y `CRON_SECRET` en Vercel, y en el Vault de Supabase los secretos `app_url` y `cron_secret`.
+
+**Ver como una CM.** En Equipo, "Ver como Lu" muestra la pantalla de esa CM tal como la ve ella (`cm_home_as`), solo para mirar.
 
 **Mapa.** El detalle de la cobertura y las fechas de la CM muestran un mapa de la dirección (vista de Google sin clave) que al tocarlo abre Google Maps.
 

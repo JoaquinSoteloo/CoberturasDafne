@@ -31,3 +31,16 @@ test('la hora de llegada queda en el día más cercano al inicio', async () => {
   assert.equal(arriveAtFor('2026-10-10T21:00', '23:00'), '2026-10-10T23:00');
   assert.equal(arriveAtFor('2026-10-10T21:00', ''), '');
 });
+
+test('momento del cronograma: cae durante la fiesta', async () => {
+  const { momentAtFor } = await import('../src/lib/calendar.ts');
+  assert.equal(momentAtFor('2026-10-10T21:00', '20:30'), '2026-10-10T20:30');
+  assert.equal(momentAtFor('2026-10-10T21:00', '23:30'), '2026-10-10T23:30');
+  // La torta de madrugada es el día siguiente.
+  assert.equal(momentAtFor('2026-10-10T21:00', '02:00'), '2026-10-11T02:00');
+  // Un almuerzo: los preparativos a la mañana, el mismo día.
+  assert.equal(momentAtFor('2026-10-10T13:00', '08:00'), '2026-10-10T08:00');
+  // Fiesta que empieza 00:30: la entrada a las 23:45 es la noche anterior.
+  assert.equal(momentAtFor('2026-10-11T00:30', '23:45'), '2026-10-10T23:45');
+  assert.equal(momentAtFor('2026-10-10T21:00', ''), '');
+});

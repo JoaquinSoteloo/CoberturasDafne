@@ -9,11 +9,14 @@ import { diff, emptyVersions, mergeVersions, snapshotOf, type Snapshot } from '@
 import type { Db } from '@/lib/types';
 
 export type SaveState = 'saved' | 'saving' | 'error';
-type Store = { db: Db; ready: boolean; update: (fn: (db: Db) => Db) => void; saveState: SaveState; email: string; signOut: () => Promise<void> };
+/** Borra algo y deja unos segundos para deshacerlo. Mientras tanto no se guarda nada: si se deshace, la base nunca se enteró. */
+export type Undoable = (message: string, remove: (db: Db) => Db, restore: (db: Db) => Db, onUndo?: () => void) => void;
+type Store = { db: Db; ready: boolean; update: (fn: (db: Db) => Db) => void; undoable: Undoable; saveState: SaveState; email: string; signOut: () => Promise<void> };
 const Context = createContext<Store | null>(null);
 const SAVE_DELAY = 500;
 const RETRY_DELAY = 5000;
 const REFRESH_AFTER = 30_000;
+const UNDO_MS = 6000;
 
 /** Errores que no se arreglan reintentando: la base rechazó el cambio. */
 const isRejected = (error: unknown) => {
@@ -38,6 +41,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const inFlight = useRef(false);
   const loadedAt = useRef(0);
   const timer = useRef<number | undefined>(undefined);
+  const holds = useRef(0);                            // borrados que todavía se pueden deshacer
   latest.current = db;
 
   const load = useCallback(async () => {
@@ -51,7 +55,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const flush = useCallback(async function flush() {
-    if (inFlight.current) return;
+    if (inFlight.current || holds.current) return;
     const snapshot = latest.current;
     const { changes, after, empty } = diff(saved.current, snapshot, versions.current);
     if (empty) { savedDb.current = snapshot; setSaveState('saved'); return; }
@@ -107,13 +111,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [load]);
 
   const update = useCallback((fn: (db: Db) => Db) => setDb(fn), []);
+  const undoable = useCallback<Undoable>((message, remove, restore, onUndo) => {
+    setDb(remove);
+    holds.current += 1;
+    let open = true;
+    const release = () => {
+      if (!open) return;
+      open = false; holds.current -= 1;
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => void flush(), SAVE_DELAY);
+    };
+    const id = toast(message, { duration: UNDO_MS, action: { label: 'Deshacer', onClick: () => {
+      if (!open) return;
+      setDb(restore); release(); onUndo?.();
+    } } });
+    // El aviso se pausa si la pestaña queda en segundo plano: el plazo lo marca este reloj.
+    window.setTimeout(() => { release(); toast.dismiss(id); }, UNDO_MS);
+  }, [flush]);
   const signOut = useCallback(async () => {
     await supabaseBrowser().auth.signOut();
     router.replace('/ingresar'); router.refresh();
   }, [router]);
 
   if (status === 'error') return <div className="grid min-h-dvh place-items-center p-6 text-center"><div><p className="font-bold">No pudimos cargar tus datos.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet y volvé a intentar.</p><button className="btn btn-primary mt-4" onClick={() => { setStatus('loading'); load().catch(() => setStatus('error')); }}>Reintentar</button></div></div>;
-  return <Context.Provider value={{ db, ready: status === 'ready', update, saveState, email, signOut }}>{status === 'ready' ? children : <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando tus datos…</div>}</Context.Provider>;
+  return <Context.Provider value={{ db, ready: status === 'ready', update, undoable, saveState, email, signOut }}>{status === 'ready' ? children : <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando tus datos…</div>}</Context.Provider>;
 }
 
 export const useStore = () => { const store = useContext(Context); if (!store) throw new Error('StoreProvider requerido'); return store; };

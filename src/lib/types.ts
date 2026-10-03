@@ -16,13 +16,15 @@ export type Expense = {
   tripFrom?: string; tripTo?: string; tripStartedAt?: string; tripEndedAt?: string;
 };
 export type ChecklistItem = { id: string; text: string; done: boolean };
+/** Un momento de la noche (entrada, vals, torta…). `at` en hora local: "AAAA-MM-DDTHH:MM". Con `notify`, las CM reciben un aviso 10 minutos antes. */
+export type Moment = { id: string; at: string; label: string; notify: boolean };
 export type Coverage = {
   id: string; name: string; partyType: string; client: string; salonId: string;
   address: string; startsAt: string; endsAt: string;
   /** Hora en que tienen que llegar las CM ('' = a la hora de inicio). */
   arriveAt: string; notes: string;
   assignments: Assignment[]; agreedCents: number; expenses: Expense[];
-  checklist: ChecklistItem[]; driveUrl: string; deliveredPieces: number;
+  checklist: ChecklistItem[]; schedule: Moment[]; driveUrl: string; deliveredPieces: number;
   deliveryNotes: string; eventStatus: EventStatus; deliveryStatus: DeliveryStatus;
 };
 export type Collection = { id: string; coverageId: string; date: string; amountCents: number; notes: string };

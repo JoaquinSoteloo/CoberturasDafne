@@ -12,15 +12,15 @@ export async function loadDb(supabase: SupabaseClient): Promise<{ db: Db; versio
     if (error) throw error;
     return (data ?? []) as Row[];
   };
-  const [salons, cms, coverages, assignments, expenses, checklist_items, collections, payments, allocations] = await Promise.all([
+  const [salons, cms, coverages, assignments, expenses, checklist_items, schedule_items, collections, payments, allocations] = await Promise.all([
     read('salons'), read('cms'), read('coverages'), read('assignments'), read('expenses'),
-    read('checklist_items'), read('collections'), read('cm_payments'), read('payment_allocations')
+    read('checklist_items'), read('schedule_items'), read('collections'), read('cm_payments'), read('payment_allocations')
   ]);
   const byPayment = new Map<string, Row[]>();
   for (const a of allocations) byPayment.set(String(a.payment_id), [...(byPayment.get(String(a.payment_id)) ?? []), a]);
   const rows: Rows = {
     salons: sortBy(salons, 'name'), cms: sortBy(cms, 'name'), coverages: sortBy(coverages, 'starts_at'),
-    assignments, expenses, checklist_items,
+    assignments, expenses, checklist_items, schedule_items,
     collections: sortBy(collections, 'date'),
     cm_payments: sortBy(payments, 'date').map(p => ({ ...p, allocations: byPayment.get(p.id) ?? [] }))
   };
