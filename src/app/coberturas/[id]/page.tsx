@@ -12,6 +12,7 @@ import { ReceiptControl } from '@/components/receipt-control';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { tripSummary } from '@/lib/trip';
 import { MapPreview } from '@/components/map-preview';
+import { WeatherStrip } from '@/components/weather-strip';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { reinsert } from '@/lib/undo';
@@ -55,6 +56,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     <Link href="/coberturas" className="back-link"><ArrowLeft size={17}/> Coberturas</Link>
     <div className="detail-hero">
       <Ticket coverage={c} db={db}>{(c.client||c.address)&&<p className="ticket-extra">{[c.client&&`Para ${c.client}`,c.address].filter(Boolean).join('. ')}</p>}{c.notes&&<p className="ticket-note">{c.notes}</p>}</Ticket>
+      {c.eventStatus==='pendiente'&&(()=>{const salon=db.salons.find(s=>s.id===c.salonId);return <WeatherStrip startsAt={c.startsAt} endsAt={c.endsAt} coords={salon?.lat!=null&&salon?.lng!=null?{lat:salon.lat,lng:salon.lng}:null}/>})()}
       {(()=>{const salon=db.salons.find(s=>s.id===c.salonId);const sameAsSalon=!c.address||c.address===salon?.address;return <MapPreview address={c.address||salon?.address||''} label={salon?.name} coords={sameAsSalon&&salon?.lat!=null&&salon?.lng!=null?{lat:salon.lat,lng:salon.lng}:null} fixLocationHref={sameAsSalon?'/equipo#salons-title':undefined}/>})()}
       <button className="btn btn-secondary" onClick={()=>setEditing('event')}><Pencil size={16}/> Editar datos del evento</button>
     </div>

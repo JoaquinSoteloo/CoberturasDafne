@@ -11,6 +11,7 @@ import { ThemeToggle } from './theme-toggle';
 import { BrandMark } from './brand';
 import { ReceiptControl } from './receipt-control';
 import { MapPreview } from './map-preview';
+import { WeatherStrip } from './weather-strip';
 import { PushPrompt, PushToggle } from './push-control';
 import { tripSummary } from '@/lib/trip';
 import { InstallHint } from './install-hint';
@@ -227,6 +228,7 @@ function DateCard({ d, now, busy, answer, tick, preview = false }: {
       <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
     </div>
     <div className="cm-date-body">
+      {d.event_status === 'pendiente' && <WeatherStrip startsAt={d.starts_at} endsAt={d.ends_at} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
       {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
       {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
         {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? Tu honorario es <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
