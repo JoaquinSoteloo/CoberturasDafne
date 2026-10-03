@@ -25,6 +25,8 @@ export type Coverage = {
   arriveAt: string; notes: string;
   /** Sale en vivo: los videos editados se suben a la cuenta de IG durante la fiesta. */
   livePosting: boolean;
+  /** "Voy yo": Dafne cubre la fiesta (sola o con CM). Sin honorario: lo que queda es su ganancia. */
+  dafneGoes: boolean;
   assignments: Assignment[]; agreedCents: number; expenses: Expense[];
   checklist: ChecklistItem[]; schedule: Moment[]; driveUrl: string; deliveredPieces: number;
   deliveryNotes: string; eventStatus: EventStatus; deliveryStatus: DeliveryStatus;

@@ -76,9 +76,11 @@ export function buildMessage(n: Pick<Outgoing, 'kind' | 'data' | 'for_coordinato
       return { title: `¿Podés cubrir ${name}?`, body: `Es el ${when(text(d.starts_at))}${place} y todavía no contestaste. Entrá para confirmar o avisar que no podés.`, url: cmDate, tag: `unanswered-${coverageId}` };
     }
     case 'moment':
-      return { title: `En 10 minutos: ${text(d.label)}`, body: `${name}, a las ${text(d.at).slice(11, 16)}.`, url: cmDate, tag: `moment-${text(d.moment_id)}` };
+      return { title: `En 10 minutos: ${text(d.label)}`, body: `${name}, a las ${text(d.at).slice(11, 16)}.`, url: n.for_coordinator ? detail : cmDate, tag: `moment-${text(d.moment_id)}` };
     case 'uber_missing':
-      return { title: '¿Tomaste Uber?', body: `${name}: si tomaste Uber, cargalo con el comprobante desde tu fecha.`, url: cmDate, tag: `uber-missing-${coverageId}` };
+      return n.for_coordinator
+        ? { title: '¿Tomaste Uber?', body: `${name}: si fuiste en Uber, cargalo desde la cobertura para que la ganancia dé bien.`, url: detail, tag: `uber-missing-${coverageId}` }
+        : { title: '¿Tomaste Uber?', body: `${name}: si tomaste Uber, cargalo con el comprobante desde tu fecha.`, url: cmDate, tag: `uber-missing-${coverageId}` };
     case 'receipt': {
       const first = text(d.cm_name).split(' ')[0] || 'Una CM';
       const label = text(d.label) || 'un gasto';

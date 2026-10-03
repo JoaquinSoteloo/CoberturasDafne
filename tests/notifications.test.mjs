@@ -124,3 +124,10 @@ test('recordatorio a la CM de cargar sus Ubers', () => {
   assert.equal(m.body, 'Cumple de Martina: si tomaste Uber, cargalo con el comprobante desde tu fecha.');
   assert.equal(m.url, '/?fecha=cov-1');
 });
+
+test('si va Dafne: el cronograma y el "¿Tomaste Uber?" la llevan a la cobertura', () => {
+  assert.equal(buildMessage({ kind: 'moment', data: { ...coverage, label: 'Vals', at: '2026-10-10T23:00:00', moment_id: 'm1' }, for_coordinator: true }).url, '/coberturas/cov-1');
+  const uber = buildMessage({ kind: 'uber_missing', data: coverage, for_coordinator: true });
+  assert.equal(uber.url, '/coberturas/cov-1');
+  assert.match(uber.body, /cargalo desde la cobertura/);
+});

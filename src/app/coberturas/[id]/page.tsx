@@ -47,7 +47,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const unconfirmed=c.assignments.filter(a=>a.confirmation!=='confirmada').length;
   const doneItems=c.checklist.filter(x=>x.done).length;
   const steps={
-    before:c.assignments.length>0&&unconfirmed===0,
+    before:(c.assignments.length>0||c.dafneGoes)&&unconfirmed===0,
     night:c.eventStatus==='realizado',
     after:c.deliveryStatus==='entregada',
   };
@@ -64,10 +64,10 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     <div className="detail-columns">
       <ol className="timeline">
         <li className={`step ${steps.before?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">Antes de la fiesta</h2><p className="step-note">{!c.assignments.length?'Falta asignar el equipo':unconfirmed?`${unconfirmed} CM sin confirmar`:'Equipo confirmado'}</p></div>
+          <div className="step-head"><h2 className="step-title">Antes de la fiesta</h2><p className="step-note">{!c.assignments.length&&!c.dafneGoes?'Falta asignar el equipo':unconfirmed?`${unconfirmed} CM sin confirmar`:c.dafneGoes&&!c.assignments.length?'Vas vos':'Equipo confirmado'}</p></div>
           <div className="step-body">
             <div className="sub-head"><h3>Equipo</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('team')}><Pencil size={15}/> Asignar o editar</button></div>
-            {!c.assignments.length?<p className="muted text-sm">Todavía no hay CM asignadas.</p>:<ul className="crew-list">{c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className="crew-row">
+            {c.dafneGoes&&<p className="text-sm font-semibold">Vas vos{c.assignments.length?', con:':'.'}</p>}{!c.assignments.length?(!c.dafneGoes&&<p className="muted text-sm">Todavía no hay CM asignadas.</p>):<ul className="crew-list">{c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className="crew-row">
               <span className="ledger-avatar" aria-hidden="true">{(cm?.name||'?').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold">{cm?.name||'CM eliminada'}</span><span className="muted text-sm">Honorario {ars(a.feeCents)}</span></span>
               <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}<Link className="text-link" href={`/pagos?tab=pagos&cm=${a.cmId}&coverage=${id}&action=registrar`}>Registrar pago</Link></span>
