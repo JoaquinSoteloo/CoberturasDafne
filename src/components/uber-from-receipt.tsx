@@ -42,7 +42,7 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
       body.append('file', small, picked.name);
       const response = await fetch('/api/receipt-scan', { method: 'POST', body });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'No se pudo leer el comprobante.');
+      if (!response.ok) throw new Error(data.error || 'No se pudo leer el recibo.');
       const result = data as ReceiptData;
       const direction = guessDirection(result, coverage, coverage.address || salon?.address).direction;
       setFile({ blob: small, name: picked.name });
@@ -51,7 +51,7 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
       setDraft({ direction, amountCents: result.totalCents ?? 0, payer: defaultPayer, absorbedBy: 'coordinadora',
         from: result.origin ?? '', to: result.destination ?? '', start: result.pickupTime ?? '', end: result.dropoffTime ?? '' });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo leer el comprobante.');
+      toast.error(e instanceof Error ? e.message : 'No se pudo leer el recibo.');
     } finally { setReading(false); }
   };
 
@@ -87,27 +87,27 @@ export function UberFromReceipt({ coverage }: { coverage: Coverage }) {
     const job = pending; setPending(null);
     attachReceipt(supabaseBrowser(), job.expenseId, job.file)
       .then(path => update(db => ({ ...db, coverages: db.coverages.map(c => ({ ...c, expenses: c.expenses.map(x => x.id === job.expenseId ? { ...x, receiptPath: path } : x) })) })))
-      .catch(() => toast.error('El Uber se guardó, pero no se pudo adjuntar el comprobante. Adjuntalo desde el gasto.'));
+      .catch(() => toast.error('El Uber se guardó, pero no se pudo adjuntar el recibo. Adjuntalo desde el gasto.'));
   }, [pending, saveState, update]);
 
   const time = read && [read.pickupTime, read.dropoffTime].filter(Boolean).join(' a ');
   return <>
     <input ref={input} type="file" accept="image/*,application/pdf" hidden onChange={e => { void pick(e.target.files?.[0]); e.target.value = ''; }}/>
     <button type="button" className="btn btn-secondary btn-small" disabled={reading || coverage.eventStatus === 'cancelado'} onClick={() => input.current?.click()}>
-      <ScanLine size={16}/>{reading ? 'Leyendo comprobante…' : 'Cargar Uber desde comprobante'}
+      <ScanLine size={16}/>{reading ? 'Leyendo recibo…' : 'Cargar Uber desde el recibo'}
     </button>
     {read && draft && <Modal title="Revisá el Uber" onClose={close}>
       <form className="space-y-4" onSubmit={save}>
         <div className="scan-summary">
           {/* eslint-disable-next-line @next/next/no-img-element -- vista previa local del archivo elegido, no pasa por el optimizador */}
-          {preview && <img src={preview} alt="Comprobante subido"/>}
+          {preview && <img src={preview} alt="Recibo subido"/>}
           <div className="min-w-0 text-sm">
-            <p className="font-bold">Esto leímos del comprobante</p>
+            <p className="font-bold">Esto leímos del recibo</p>
             <p className="muted">{[read.date && `${read.date.slice(8, 10)}/${read.date.slice(5, 7)}`, time].filter(Boolean).join(', ') || 'Sin fecha ni horario'}</p>
             {(read.origin || read.destination) && <p className="muted">{read.origin ?? '?'} → {read.destination ?? '?'}</p>}
           </div>
         </div>
-        {!read.isTripReceipt && <p className="scan-warning"><TriangleAlert size={16}/>No parece un comprobante de viaje. Revisá la imagen.</p>}
+        {!read.isTripReceipt && <p className="scan-warning"><TriangleAlert size={16}/>No parece un recibo de viaje. Revisá la imagen.</p>}
         {warning && <p className="scan-warning"><TriangleAlert size={16}/>{warning}</p>}
         {read.totalCents === null && <p className="scan-warning"><TriangleAlert size={16}/>No se pudo leer el total: cargalo a mano.</p>}
 

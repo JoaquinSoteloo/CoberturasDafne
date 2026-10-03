@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { Paperclip, FileCheck2, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cap } from './ui';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, deleteCmUber, openReceipt, removeReceipt, type ReceiptTarget } from '@/lib/receipts';
 
@@ -23,27 +24,29 @@ export function ReceiptControl({ expenseId, path, onChange, disabledReason, cm, 
   };
   const pick = (file?: File) => file && run('subiendo', async () => {
     const next = await attachReceipt(supabaseBrowser(), expenseId, file, path, target);
-    onChange(next); toast.success(path ? 'Comprobante cambiado' : 'Comprobante adjuntado');
+    onChange(next); toast.success(path ? `${cap(noun)} cambiado` : `${cap(noun)} adjuntado`);
   });
   const disabled = !!busy || !!disabledReason;
+  // Del Uber es el recibo del viaje; de un pago o un cobro, el comprobante de la transferencia.
+  const noun = target === 'expense' ? 'recibo' : 'comprobante';
   const locked = !!cm?.paid;
   const canRemove = !cm || cm.loadedByCm;
   const remove = () => {
     if (!path) return;
     if (cm) {
-      if (window.confirm('¿Borrar este Uber? Se borra junto con el comprobante y le avisamos a Dafne.')) void run('quitando', async () => { await deleteCmUber(supabaseBrowser(), expenseId); onChange(null); toast.success('Uber borrado'); });
+      if (window.confirm(`¿Borrar este Uber? Se borra junto con el ${noun} y le avisamos a Dafne.`)) void run('quitando', async () => { await deleteCmUber(supabaseBrowser(), expenseId); onChange(null); toast.success('Uber borrado'); });
       return;
     }
-    if (window.confirm('¿Quitar el comprobante? El archivo se borra.')) void run('quitando', async () => { await removeReceipt(supabaseBrowser(), expenseId, path, target); onChange(null); toast.success('Comprobante quitado'); });
+    if (window.confirm(`¿Quitar el ${noun}? El archivo se borra.`)) void run('quitando', async () => { await removeReceipt(supabaseBrowser(), expenseId, path, target); onChange(null); toast.success(`${cap(noun)} quitado`); });
   };
 
   return <span className="receipt-control">
     <input ref={input} type="file" accept="image/*,application/pdf" hidden onChange={e => { void pick(e.target.files?.[0]); e.target.value = ''; }}/>
     {path ? <>
-      <button type="button" className="btn btn-secondary btn-small" disabled={disabled} onClick={() => void run('abriendo', () => openReceipt(supabaseBrowser(), path))}><FileCheck2 size={16}/>{busy === 'abriendo' ? 'Abriendo…' : 'Ver comprobante'}</button>
+      <button type="button" className="btn btn-secondary btn-small" disabled={disabled} onClick={() => void run('abriendo', () => openReceipt(supabaseBrowser(), path))}><FileCheck2 size={16}/>{busy === 'abriendo' ? 'Abriendo…' : `Ver ${noun}`}</button>
       {!locked && <button type="button" className="btn btn-quiet btn-small" disabled={disabled} onClick={() => input.current?.click()}><RefreshCw size={15}/>{busy === 'subiendo' ? 'Subiendo…' : 'Cambiar'}</button>}
-      {!locked && canRemove && <button type="button" className="btn btn-quiet btn-small" disabled={disabled} aria-label={cm ? 'Borrar Uber' : 'Quitar comprobante'} onClick={remove}><Trash2 size={15}/>{busy === 'quitando' ? (cm ? 'Borrando…' : 'Quitando…') : cm ? 'Borrar Uber' : ''}</button>}
-    </> : !locked && <button type="button" className="btn btn-secondary btn-small" disabled={disabled} onClick={() => input.current?.click()}><Paperclip size={16}/>{busy === 'subiendo' ? 'Subiendo…' : 'Adjuntar comprobante'}</button>}
+      {!locked && canRemove && <button type="button" className="btn btn-quiet btn-small" disabled={disabled} aria-label={cm ? 'Borrar Uber' : `Quitar ${noun}`} onClick={remove}><Trash2 size={15}/>{busy === 'quitando' ? (cm ? 'Borrando…' : 'Quitando…') : cm ? 'Borrar Uber' : ''}</button>}
+    </> : !locked && <button type="button" className="btn btn-secondary btn-small" disabled={disabled} onClick={() => input.current?.click()}><Paperclip size={16}/>{busy === 'subiendo' ? 'Subiendo…' : `Adjuntar ${noun}`}</button>}
     {locked && <span className="muted text-sm">{path ? 'Ya está pago: si hay algo mal, avisale a Dafne.' : 'Ya está pago.'}</span>}
     {disabledReason && <span className="muted text-sm">{disabledReason}</span>}
   </span>;

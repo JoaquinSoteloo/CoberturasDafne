@@ -41,16 +41,16 @@ export function CmUbers({ event, ubers, canAdd, preview, onChange }: {
       const body = new FormData(); body.append('file', new File([small], picked.name, { type: small.type || picked.type }));
       const res = await fetch('/api/receipt-scan', { method: 'POST', body });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setNote(`${data.error || 'No se pudo leer el comprobante.'} Completá los datos a mano.`); return; }
+      if (!res.ok) { setNote(`${data.error || 'No se pudo leer el recibo.'} Completá los datos a mano.`); return; }
       const r = data as ReceiptData;
-      if (!r.isTripReceipt) { setNote('No parece un comprobante de viaje. Revisá el archivo o completá los datos a mano.'); return; }
+      if (!r.isTripReceipt) { setNote('No parece un recibo de viaje. Revisá el archivo o completá los datos a mano.'); return; }
       setRead(r);
       if (r.totalCents) setAmount(r.totalCents);
       const guess = guessDirection(r, { startsAt: event.startsAt, endsAt: event.endsAt ?? undefined }, event.address);
       if (guess.direction) setDirection(guess.direction);
       setNote([guess.direction ? null : guess.reason, dateWarning(r, event.startsAt)].filter(Boolean).join(' '));
     } catch {
-      setNote('No se pudo leer el comprobante. Completá los datos a mano.');
+      setNote('No se pudo leer el recibo. Completá los datos a mano.');
     } finally { setScanning(false); }
   };
 
@@ -71,7 +71,7 @@ export function CmUbers({ event, ubers, canAdd, preview, onChange }: {
       await attachReceipt(supabase, data, file);
       toast.success('Uber cargado. Le avisamos a Dafne.');
     } catch (err) {
-      toast.error(`El Uber se cargó, pero el comprobante no: ${err instanceof Error ? err.message : 'probá adjuntarlo de nuevo.'}`);
+      toast.error(`El Uber se cargó, pero el recibo no: ${err instanceof Error ? err.message : 'probá adjuntarlo de nuevo.'}`);
     }
     setBusy(false); reset(); onChange();
   };
@@ -86,12 +86,12 @@ export function CmUbers({ event, ubers, canAdd, preview, onChange }: {
     </li>; })}</ul>}
     {canAdd && !open && <button type="button" className="btn btn-secondary mt-3" disabled={preview} onClick={() => setOpen(true)}><Car size={17}/> Cargar un Uber</button>}
     {canAdd && open && <form className="cm-uber-form mt-3 space-y-3" onSubmit={e => void save(e)}>
-      <div><span className="label">Comprobante</span>
+      <div><span className="label">Recibo del viaje</span>
         <input ref={input} type="file" accept="image/*,application/pdf" hidden onChange={e => { void pick(e.target.files?.[0]); e.target.value = ''; }}/>
         <button type="button" className="btn btn-secondary w-full justify-start" disabled={scanning} onClick={() => input.current?.click()}><Paperclip size={16}/><span className="truncate">{file ? file.name : 'Elegir captura o PDF del viaje'}</span></button>
         {!file && <p className="muted mt-2 text-sm">Lo leemos y completamos los datos por vos.</p>}
       </div>
-      {scanning && <p className="cm-uber-ai" role="status"><Sparkles size={16} aria-hidden="true"/> Leyendo el comprobante…</p>}
+      {scanning && <p className="cm-uber-ai" role="status"><Sparkles size={16} aria-hidden="true"/> Leyendo el recibo…</p>}
       {read && <p className="cm-uber-ai"><Sparkles size={16} aria-hidden="true"/><span>Leído con IA{trip ? `: ${trip}` : ''}. Revisá que esté bien.</span></p>}
       {note && <p className="weather-tip text-sm" role="status">{note}</p>}
       <div className="coverage-view-switch" role="group" aria-label="¿De ida o de vuelta?">{(['ida', 'vuelta'] as const).map(v => <button key={v} type="button" aria-pressed={direction === v} className={direction === v ? 'selected' : ''} onClick={() => setDirection(v)}>{v === 'ida' ? 'De ida' : 'De vuelta'}</button>)}</div>

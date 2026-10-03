@@ -53,8 +53,8 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return fail('No llegó ningún archivo.', 400);
   if (file.size > MAX_BYTES) return fail('El archivo pesa más de 4 MB. Probá con una captura de pantalla.', 400);
   const isPdf = file.type === 'application/pdf';
-  if (!isPdf && !file.type.startsWith('image/')) return fail('Subí una foto o un PDF del comprobante.', 400);
-  if (!isPdf && !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) return fail('Ese formato de foto no se puede leer. Mandá una captura de pantalla del comprobante.', 400);
+  if (!isPdf && !file.type.startsWith('image/')) return fail('Subí una foto o un PDF del recibo.', 400);
+  if (!isPdf && !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) return fail('Ese formato de foto no se puede leer. Mandá una captura de pantalla del recibo.', 400);
 
   const base64 = Buffer.from(await file.arrayBuffer()).toString('base64');
   const attachment = isPdf
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       text: { format: zodTextFormat(Receipt, 'comprobante') }
     }));
     const r = response.output_parsed;
-    if (!r) return fail('No se pudo leer el comprobante. Cargá los datos a mano.', 422);
+    if (!r) return fail('No se pudo leer el recibo. Cargá los datos a mano.', 422);
 
     const time = (v: string | null) => v && /^\d{1,2}:\d{2}$/.test(v.trim()) ? v.trim().padStart(5, '0') : null;
     const data: ReceiptData = {
