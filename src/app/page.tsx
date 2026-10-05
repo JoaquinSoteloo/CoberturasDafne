@@ -35,19 +35,21 @@ export default function Home() {
 
   // A resolver: después de la fiesta (contenido y cobros) y antes (equipo sin confirmar).
   const past = db.coverages.filter(c => c.eventStatus !== 'cancelado' && c.startsAt.slice(0, 10) < today).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const todo = [
+  const issues = [
     ...past.filter(c => c.deliveryStatus === 'pendiente').map(c => {
       const k = stageCounts(c.checklist);
-      return { key: `d-${c.id}`, id: c.id, title: c.name, detail: `${k.total && k.drive < k.total ? `Faltan ${k.total - k.drive} en el Drive${k.whatsapp > k.drive ? ` (${k.whatsapp - k.drive} ya por WhatsApp)` : ''}` : 'Falta entregar el contenido'} · ${daysAgo(c.startsAt)}` };
+      return { c, text: k.total && k.drive < k.total ? `Faltan ${k.total - k.drive} en el Drive${k.whatsapp > k.drive ? ` (${k.whatsapp - k.drive} ya por WhatsApp)` : ''}` : 'Falta entregar el contenido' };
     }),
-    ...past.map(c => ({ c, owed: collectionPending(db, c) })).filter(x => x.owed > 0).map(({ c, owed }) => ({ key: `u-${c.id}`, id: c.id, title: c.name, detail: `${salon(c.salonId) ?? 'El salón'} debe ${ars(owed)} · ${daysAgo(c.startsAt)}` })),
-    ...upcoming.filter(c => (!c.assignments.length && !c.dafneGoes) || c.assignments.some(a => a.confirmation !== 'confirmada')).map(c => ({ key: `a-${c.id}`, id: c.id, title: c.name, detail: `${!c.assignments.length ? 'Sin CM asignada' : `${c.assignments.filter(a => a.confirmation !== 'confirmada').length} CM por confirmar`} · ${untilLabel(c.startsAt).toLowerCase()}` })),
+    ...past.map(c => ({ c, owed: collectionPending(db, c) })).filter(x => x.owed > 0).map(({ c, owed }) => ({ c, text: `${salon(c.salonId) ?? 'El salón'} debe ${ars(owed)}` })),
+    ...upcoming.filter(c => (!c.assignments.length && !c.dafneGoes) || c.assignments.some(a => a.confirmation !== 'confirmada')).map(c => ({ c, text: !c.assignments.length ? 'Sin CM asignada' : `${c.assignments.filter(a => a.confirmation !== 'confirmada').length} CM por confirmar` })),
   ];
+  // Una tarjeta por fiesta, con todo lo que le falta.
+  const todo = [...issues.reduce((m, { c, text }) => { const t = m.get(c.id); if (t) t.lines.push(text); else m.set(c.id, { id: c.id, title: c.name, when: c.startsAt.slice(0, 10) < today ? daysAgo(c.startsAt) : untilLabel(c.startsAt).toLowerCase(), lines: [text] }); return m; }, new Map<string, { id: string; title: string; when: string; lines: string[] }>()).values()];
   const shownTodo = showAll ? todo : todo.slice(0, TODO_LIMIT);
 
   return <div className="home space-y-7">
     <LiveNow items={liveItems} href={id => `/coberturas/${id}`}/>
-    <header><h1 className="page-title">Hola, Dafne</h1><p className="muted mt-1">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No hay fiestas agendadas por ahora.'}</p></header>
+    <header><p className="muted text-sm first-letter:uppercase">{new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)}</p><h1 className="home-hello">Hola, Dafne</h1></header>
 
     <div className="dashboard-columns">
       <section aria-labelledby="next-title"><div className="section-heading"><h2 id="next-title" className="section-title">Próximas fiestas</h2><Link href="/coberturas" className="text-link">Ver agenda</Link></div>
@@ -59,7 +61,7 @@ export default function Home() {
 
       <section className="attention-panel" aria-labelledby="todo-title"><div className="section-heading"><h2 id="todo-title" className="section-title">A resolver</h2>{todo.length > 0 && <span className="attention-count">{todo.length}</span>}</div>
         {ready && !todo.length ? <p className="home-ok"><CircleCheck size={18}/> Todo en orden: confirmado, entregado y cobrado.</p>
-          : <><ul className="attention-list">{shownTodo.map(t => <li key={t.key}><Link className="attention-item" href={`/coberturas/${t.id}`}><span className="font-bold">{t.title}</span><span className="muted text-sm">{t.detail}</span></Link></li>)}</ul>
+          : <><ul className="attention-list">{shownTodo.map(t => <li key={t.id}><Link className="attention-item" href={`/coberturas/${t.id}`}><span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate font-bold">{t.title}</span><span className="muted shrink-0 text-xs">{t.when}</span></span>{t.lines.map(l => <span key={l} className="muted text-sm">{l}</span>)}</Link></li>)}</ul>
             {todo.length > TODO_LIMIT && <button type="button" className="text-link mt-2 text-sm" onClick={() => setShowAll(v => !v)}>{showAll ? 'Ver menos' : `Ver las ${todo.length}`}</button>}</>}
       </section>
     </div>

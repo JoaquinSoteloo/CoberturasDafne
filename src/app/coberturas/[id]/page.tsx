@@ -2,14 +2,14 @@
 import { use, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell } from 'lucide-react';
+import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell, ChevronDown } from 'lucide-react';
 import { CoverageForm } from '@/components/coverage-form';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
 import { StageButton } from '@/components/stage-button';
 import { PayUber } from '@/components/pay-uber';
-import { stageOf, stageSummary, type Stage } from '@/lib/content';
+import { stageCounts, stageOf, stageSummary, type Stage } from '@/lib/content';
 import { UberFromReceipt } from '@/components/uber-from-receipt';
 import { tripSummary } from '@/lib/trip';
 import { MapPreview } from '@/components/map-preview';
@@ -21,6 +21,8 @@ import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, est
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const {id}=use(params); const {db,ready,update,undoable,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
+  // Los pasos ya resueltos quedan cerrados; se abren con un toque.
+  const [toggled,setToggled]=useState<Record<string,boolean>>({});
   const c=db.coverages.find(x=>x.id===id);
   if(!ready) return <p className="muted">Cargando cobertura…</p>;
   if(!c) return <div><Link href="/coberturas" className="text-link">Volver a coberturas</Link><h1 className="page-title mt-5">Cobertura no encontrada</h1></div>;
@@ -47,51 +49,60 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     after:c.deliveryStatus==='entregada',
   };
   const cancelled=c.eventStatus==='cancelado';
+  const k=stageCounts(c.checklist);
+  const settled={before:steps.before,night:steps.night&&k.drive===k.total&&c.expenses.every(e=>expenseIsPaid(db,e)),after:steps.after};
+  type Step=keyof typeof settled;
+  const isOpen=(step:Step)=>toggled[step]??!settled[step];
+  const flip=(step:Step)=>setToggled(t=>({...t,[step]:!isOpen(step)}));
+  const head=(step:Step,title:string,note:string)=><h2><button type="button" className="step-head step-toggle" aria-expanded={isOpen(step)} onClick={()=>flip(step)}><span className="step-title">{title}</span><span className="sr-only">: </span><span className="step-note">{note}</span><ChevronDown size={18} className="step-chevron" aria-hidden="true"/></button></h2>;
+  // Pasada la fiesta, lo primero es la plata (si falta cobrar o pagar).
+  const startMs=new Date(c.startsAt).getTime();const endMs=c.endsAt?new Date(c.endsAt).getTime():startMs+6*3600e3;
+  const moneyFirst=!cancelled&&(c.eventStatus==='realizado'||Date.now()>endMs)&&(owed>0||toSettle>0);
   return <div className="space-y-7">
     <Link href="/coberturas" className="back-link"><ArrowLeft size={17}/> Coberturas</Link>
     <div className="detail-hero">
       <Ticket coverage={c} db={db}>{(c.client||c.address)&&<p className="ticket-extra">{[c.client&&`Para ${c.client}`,c.address].filter(Boolean).join('. ')}</p>}{c.notes&&<p className="ticket-note">{c.notes}</p>}</Ticket>
       {c.eventStatus==='pendiente'&&(()=>{const salon=db.salons.find(s=>s.id===c.salonId);return <WeatherStrip startsAt={c.startsAt} endsAt={c.endsAt} coords={salon?.lat!=null&&salon?.lng!=null?{lat:salon.lat,lng:salon.lng}:null}/>})()}
-      {(()=>{const salon=db.salons.find(s=>s.id===c.salonId);const sameAsSalon=!c.address||c.address===salon?.address;return <MapPreview address={c.address||salon?.address||''} label={salon?.name} coords={sameAsSalon&&salon?.lat!=null&&salon?.lng!=null?{lat:salon.lat,lng:salon.lng}:null} fixLocationHref={sameAsSalon?'/equipo#salons-title':undefined}/>})()}
-      <button className="btn btn-secondary" onClick={()=>setEditing('event')}><Pencil size={16}/> Editar datos del evento</button>
+      <div className="detail-actions">{(()=>{const salon=db.salons.find(s=>s.id===c.salonId);const sameAsSalon=!c.address||c.address===salon?.address;return <MapPreview compact address={c.address||salon?.address||''} label={salon?.name} coords={sameAsSalon&&salon?.lat!=null&&salon?.lng!=null?{lat:salon.lat,lng:salon.lng}:null} fixLocationHref={sameAsSalon?'/equipo#salons-title':undefined}/>})()}
+        <button className="btn btn-secondary btn-small" onClick={()=>setEditing('event')}><Pencil size={15}/> Editar</button></div>
     </div>
     {cancelled&&<p role="status" className="cancel-note">Esta fiesta está cancelada: no suma ingresos ni costos.</p>}
-    <div className="detail-columns">
+    <div className={`detail-columns ${moneyFirst?'money-first':''}`}>
       <ol className="timeline">
         <li className={`step ${steps.before?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">Antes de la fiesta</h2><p className="step-note">{!c.assignments.length&&!c.dafneGoes?'Falta asignar el equipo':unconfirmed?`${unconfirmed} CM sin confirmar`:c.dafneGoes&&!c.assignments.length?'Vas vos':'Equipo confirmado'}</p></div>
-          <div className="step-body">
+          {head('before','Antes de la fiesta',!c.assignments.length&&!c.dafneGoes?'Falta asignar el equipo':unconfirmed?`${unconfirmed} CM sin confirmar`:c.dafneGoes&&!c.assignments.length?'Vas vos':'Equipo confirmado')}
+          {isOpen('before')&&<div className="step-body">
             <div className="sub-head"><h3>Equipo</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('team')}><Pencil size={15}/> Asignar o editar</button></div>
             {c.dafneGoes&&<p className="text-sm font-semibold">Vas vos{c.assignments.length?', con:':'.'}</p>}{!c.assignments.length?(!c.dafneGoes&&<p className="muted text-sm">Todavía no hay CM asignadas.</p>):<ul className="crew-list">{c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className="crew-row">
               <span className="ledger-avatar" aria-hidden="true">{(cm?.name||'?').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold">{cm?.name||'CM eliminada'}</span><span className="muted text-sm">Honorario {ars(a.feeCents)}</span></span>
               <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}<Link className="text-link" href={`/pagos?tab=pagos&cm=${a.cmId}&coverage=${id}&action=registrar`}>Registrar pago</Link></span>
             </li>})}</ul>}
-          </div>
+          </div>}
         </li>
         <li className={`step ${steps.night?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">La noche</h2><p className="step-note">{[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?stageSummary(c.checklist):c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. ')}</p></div>
-          <div className="step-body">
+          {head('night','La noche',[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?stageSummary(c.checklist):c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. '))}
+          {isOpen('night')&&<div className="step-body">
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
             {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><StageButton stage={stageOf(x)} text={x.text} onChange={s=>setStage(x.id,s)}/></li>)}</ul><p className="muted mt-2 text-xs">Tocá para marcar: ✓ enviado por WhatsApp · ✓✓ subido al Drive.</p></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
             <div className="sub-head mt-6"><h3>Cronograma</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('schedule')}><Pencil size={15}/> {c.schedule.length?'Editar':'Armar'} cronograma</button></div>
             {c.schedule.length?<ol className="schedule-list">{[...c.schedule].sort((a,b)=>a.at.localeCompare(b.at)).map(m=><li key={m.id}><time>{m.at.slice(11,16)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify&&<span className="schedule-bell" title="Las CM reciben un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Con aviso</span></span>}</li>)}</ol>:<p className="muted text-sm">Los momentos de la noche con su hora: entrada, vals, torta. Las CM los ven en su fecha.</p>}
-            <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Cargar gastos</button></div>
+            <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Editar</button></div>
             <div className="mb-3"><UberFromReceipt coverage={c}/></div>
             {!c.expenses.length?<p className="muted text-sm">Sin gastos cargados.</p>:<ul className="ledger">{c.expenses.map(e=>{const paid=expenseIsPaid(db,e);return <li key={e.id} className="ledger-row px-0">
-              <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span>{tripSummary(e)&&<span className="block text-sm">{tripSummary(e)}</span>}<span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagás vos'}. {e.absorbedBy==='salon'?'Lo cubre el salón.':'Corre por tu cuenta.'}</span></span>
+              <span className="min-w-0 flex-1"><span className="block font-bold">{e.label}</span>{tripSummary(e)&&<span className="block text-sm">{tripSummary(e)}</span>}<span className="muted block text-sm">{e.advancedBy==='cm'?`Lo adelantó ${db.cms.find(x=>x.id===e.advancedCmId)?.name.split(' ')[0]||'una CM'}`:'Lo pagaste vos'}</span></span>
               <span className="ledger-side"><span className="ledger-amount">{ars(e.amountCents)}</span>{e.kind==='uber'&&paid&&<span className="badge badge-success">Pagado</span>}{e.kind==='uber'&&<PayUber coverageId={id} expenseId={e.id}/>}{conceptPaid(db,`expense:${e.id}`)===0&&<button type="button" className="btn btn-quiet btn-small !px-2" aria-label={`Borrar ${e.label}`} onClick={()=>removeExpense(e.id)}><Trash2 size={16}/></button>}</span>
               <span className="receipt-row"><ReceiptControl expenseId={e.id} path={e.receiptPath} disabledReason={saveState==='saved'?undefined:'Se puede adjuntar cuando terminen de guardarse los cambios.'} onChange={path=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,expenses:row.expenses.map(x=>x.id===e.id?{...x,receiptPath:path??undefined}:x)}:row)}))}/></span>
             </li>})}</ul>}
-          </div>
+          </div>}
         </li>
         <li className={`step ${steps.after?'is-done':''}`}>
-          <div className="step-head"><h2 className="step-title">Después</h2><p className="step-note">{c.deliveryStatus==='entregada'?'Contenido entregado':'Falta entregar el contenido'}</p></div>
-          <div className="step-body">
+          {head('after','Después',c.deliveryStatus==='entregada'?'Contenido entregado':'Falta entregar el contenido')}
+          {isOpen('after')&&<div className="step-body">
             <div className="sub-head"><h3>Entrega</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar entrega</button></div>
             <div className="flex flex-wrap items-center gap-3"><span className={`badge ${c.deliveryStatus==='entregada'?'badge-success':'badge-warn'}`}>{cap(c.deliveryStatus)}</span>{c.deliveredPieces>0&&<span className="font-semibold">{c.deliveredPieces} {c.deliveredPieces===1?'pieza':'piezas'}</span>}{c.driveUrl&&<a href={c.driveUrl} target="_blank" rel="noopener noreferrer" className="text-link inline-flex items-center gap-1"><FolderOpen size={16}/> Abrir carpeta de Drive</a>}</div>
             {c.deliveryNotes&&<p className="muted mt-2 text-sm">{c.deliveryNotes}</p>}
-          </div>
+          </div>}
         </li>
       </ol>
       <aside className="numbers-panel" aria-labelledby="numbers-title">

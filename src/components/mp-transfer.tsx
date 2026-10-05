@@ -42,7 +42,7 @@ export function MpTransfer({ name, alias, amountCents }: { name: string; alias?:
   const [opened, setOpened] = useState(false);
   const first = name.split(' ')[0] || 'la CM';
   const clean = (alias ?? '').trim();
-  if (!clean) return <p className="muted text-sm">Cargá el alias de {first} en Equipo para transferirle desde acá.</p>;
+  if (!clean) return <p className="muted text-sm">Falta el alias de {first}: cargalo con “Editar” en su ficha del equipo y le transferís desde acá.</p>;
 
   // Sin puntos de miles, que es como lo pide el teclado de Mercado Pago.
   const copyAmount = async () => {

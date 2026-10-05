@@ -7,15 +7,23 @@ import { mapsSearchUrl, uberUrl, type Coords } from '@/lib/maps';
  * "Pedir Uber" con el destino cargado. La vista embebida usa la forma de Google sin clave
  * (no oficial): si algún día deja de cargar, los botones siguen funcionando.
  */
-export function MapPreview({ address, label, coords, fixLocationHref }: {
+export function MapPreview({ address, label, coords, fixLocationHref, compact = false }: {
   address: string; label?: string; coords?: Coords | null;
   /** Para la coordinadora: adónde ir a fijar la ubicación si falta. */
   fixLocationHref?: string;
+  /** Sin el mapa: solo "Maps" y "Uber", para cuando la dirección ya se ve arriba. */
+  compact?: boolean;
 }) {
   if (!address.trim() && !coords) return null;
   // Con la dirección, el mapa de Google dibuja el pin; con coordenadas, no. Las coordenadas quedan para Uber.
   const query = address.trim() || (coords ? `${coords.lat},${coords.lng}` : '');
   const maps = mapsSearchUrl(address, coords);
+  if (compact) return <>
+    <a className="btn btn-secondary btn-small" href={maps} target="_blank" rel="noopener noreferrer"><MapPin size={15}/> Maps</a>
+    {coords
+      ? <a className="btn btn-uber btn-small" href={uberUrl(coords, label || address, address)} target="_blank" rel="noopener noreferrer"><Car size={15}/> Uber</a>
+      : fixLocationHref && <Link className="btn btn-quiet btn-small" href={fixLocationHref}><Car size={15}/> Fijar ubicación</Link>}
+  </>;
   return <div className="map-preview">
     <a href={maps} target="_blank" rel="noopener noreferrer" tabIndex={-1} aria-hidden="true" className="map-frame">
       <iframe title={`Mapa de ${label || address}`} src={`https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`} loading="lazy" referrerPolicy="no-referrer-when-downgrade" tabIndex={-1}/>
