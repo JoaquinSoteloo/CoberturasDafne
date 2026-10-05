@@ -7,15 +7,14 @@ import { useStore } from './store';
 import { flash } from './ui';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, shrink } from '@/lib/receipts';
-import { decideTransfer, type TransferData, type TransferHint } from '@/lib/transfer';
+import type { TransferData, TransferHint } from '@/lib/transfer';
+import { decideFor, movementFor, withMovement } from '@/lib/intake';
 import { handOffTransfer } from '@/lib/transfer-handoff';
-import { allocatePayment, collectionPending, concepts, expectedIncome, paymentTotal, validateCollection } from '@/lib/domain';
 import { ars, dateLabel } from '@/lib/money';
 import { newId } from '@/lib/repository';
 import type { Db } from '@/lib/types';
 
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const first = (name?: string) => name?.split(' ')[0] ?? 'la CM';
 
 // Comprobantes de lo que la IA registró, esperando a que el cobro o el pago se guarde para adjuntarlos.
 type Job = { target: 'payment' | 'collection'; id: string; file: File; sawSaving: boolean };
@@ -69,7 +68,6 @@ export function useReceiptIntake() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const latest = useRef<Db>(db); latest.current = db;
-  const ownerWords = email.split('@')[0].split(/[^a-zA-Z]+/).filter(w => w.length >= 3);
 
   const process = async (files: File[], hint?: TransferHint) => {
     if (!files.length) return 0;
@@ -81,16 +79,7 @@ export function useReceiptIntake() {
         let r: TransferData;
         try { r = await scan(file); } catch (e) { toast.error(`${file.name}: ${e instanceof Error ? e.message : 'no se pudo leer.'}`); continue; }
         const db = latest.current;
-        const coverage = (id: string) => db.coverages.find(c => c.id === id);
-        const d = decideTransfer({
-          t: r, cms: db.cms, ownerWords, hint,
-          items: concepts(db).map(x => ({ id: x.id, cmId: x.cmId, coverageId: x.coverageId, pendingCents: x.pendingCents, startsAt: coverage(x.coverageId)?.startsAt ?? '' })),
-          collections: db.coverages.map(c => ({ id: c.id, startsAt: c.startsAt, agreedCents: expectedIncome(c), pendingCents: collectionPending(db, c), client: c.client, salon: db.salons.find(s => s.id === c.salonId)?.name ?? '' })),
-          movements: [
-            ...db.collections.map(c => ({ id: c.id, kind: 'cobro' as const, amountCents: c.amountCents, date: c.date, hasReceipt: !!c.receiptPath })),
-            ...db.cmPayments.map(p => ({ id: p.id, kind: 'pago' as const, cmId: p.cmId, amountCents: paymentTotal(p), date: p.date, hasReceipt: !!p.receiptPath })),
-          ],
-        });
+        const d = decideFor(db, r, email, hint);
         // No se pudo registrar solo: se abre en Pagos para revisarlo (uno por vez).
         const read = r;
         const toReview = () => {
@@ -99,9 +88,6 @@ export function useReceiptIntake() {
           handOffTransfer(file, read, hint);
           router.push(`/pagos?comprobante=${Date.now()}`);
         };
-        const date = r.date ?? today();
-        const notes = `Cargado con IA${r.operation ? ` · Operación ${r.operation}` : ''}`;
-
         if (d.action === 'attach') {
           try {
             const target = d.kind === 'cobro' ? 'collection' : 'payment';
@@ -113,29 +99,10 @@ export function useReceiptIntake() {
           } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo adjuntar el comprobante.'); }
           continue;
         }
-        if (d.action === 'pago') {
-          try {
-            const allocations = allocatePayment(db, d.cmId, d.conceptIds, d.amountCents);
-            const id = newId(); const cm = db.cms.find(x => x.id === d.cmId);
-            const parties = [...new Set(d.conceptIds.map(c => concepts(db).find(x => x.id === c)?.coverageId))].map(c => coverage(c ?? '')?.name).filter(Boolean);
-            const ubers = d.conceptIds.some(c => c.startsWith('expense:'));
-            undoable(`Registré el pago de ${ars(d.amountCents)} a ${first(cm?.name)}: ${parties.join(', ')}${ubers ? ' (con Uber)' : ''}.`,
-              db => ({ ...db, cmPayments: [...db.cmPayments, { id, cmId: d.cmId, date, allocations, notes }] }),
-              db => ({ ...db, cmPayments: db.cmPayments.filter(x => x.id !== id) }));
-            queue({ target: 'payment', id, file }); flash(); done++;
-          } catch { toReview(); }
-          continue;
-        }
-        if (d.action === 'cobro') {
-          if (validateCollection(db, d.coverageId, d.amountCents)) { toReview(); continue; }
-          const id = newId(); const c = coverage(d.coverageId);
-          undoable(`Registré el cobro de ${ars(d.amountCents)} de ${c?.name ?? 'la fiesta'}.`,
-            db => ({ ...db, collections: [...db.collections, { id, coverageId: d.coverageId, date, amountCents: d.amountCents, notes }] }),
-            db => ({ ...db, collections: db.collections.filter(x => x.id !== id) }));
-          queue({ target: 'collection', id, file }); flash(); done++;
-          continue;
-        }
-        toReview();
+        const id = newId(); const m = movementFor(db, d, r, id, today());
+        if (!m) { toReview(); continue; }
+        undoable(m.message, db => withMovement(db, m), db => m.kind === 'pago' ? { ...db, cmPayments: db.cmPayments.filter(x => x.id !== id) } : { ...db, collections: db.collections.filter(x => x.id !== id) });
+        queue({ target: m.kind === 'pago' ? 'payment' : 'collection', id, file }); flash(); done++;
       }
     } finally { toast.dismiss(loading); setBusy(false); }
     return done;

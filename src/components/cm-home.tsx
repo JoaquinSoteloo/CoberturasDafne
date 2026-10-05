@@ -132,7 +132,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     ? <div className="preview-banner" role="note"><Eye size={18} aria-hidden="true"/><p className="min-w-0 flex-1">Así ve la app {home ? home.name.split(' ')[0] : 'esta CM'}. Desde acá no se puede tocar nada.</p><Link href="/equipo" className="btn btn-secondary btn-small">Volver</Link></div>
     : <header className="cm-header">
       <BrandMark size={30}/>
-      <HeaderMenu email={home?.profile?.email ?? ''} name={home?.name} photoPath={home?.profile?.photo_path} onSignOut={() => void onSignOut?.()}/>
+      <HeaderMenu who="cm" email={home?.profile?.email ?? ''} name={home?.name} photoPath={home?.profile?.photo_path} onSignOut={() => void onSignOut?.()}/>
     </header>;
   // En el celular, las secciones van abajo, al alcance del pulgar (en "Ver como" no: ya está la barra de Dafne).
   const goTab = (next: typeof tab) => { if (openId) closeDate(); setTab(next); window.scrollTo(0, 0); };

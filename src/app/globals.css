@@ -297,6 +297,11 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .home-types li{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px dotted #ffffff26}
 .home-types li:last-child{border-bottom:0}
 .home-types strong{white-space:nowrap}
+.shortcut-link{display:grid;gap:10px;padding:14px;border-radius:16px;background:var(--sunken)}
+.shortcut-url{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.shortcut-steps{display:grid;gap:10px;margin:0;padding-left:22px;font-size:15px}
+.shortcut-steps li::marker{font-weight:800}
+.review-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:var(--accent-text);font-weight:700;font-size:14px}
 .pay-balance{background:var(--night);color:#fff;border-radius:22px;padding:18px 20px}
 .pay-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .pay-balance-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#d8d2ec}

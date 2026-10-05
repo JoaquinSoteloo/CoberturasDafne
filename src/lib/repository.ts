@@ -5,10 +5,14 @@ import type { Db } from './types';
 export const emptyDb = (): Db => ({ version: 1, salons: [], cms: [], coverages: [], collections: [], cmPayments: [] });
 export const newId = () => crypto.randomUUID();
 
-/** Lee todas las tablas de la cuenta (las políticas filtran por dueña) y arma el Db. */
-export async function loadDb(supabase: SupabaseClient): Promise<{ db: Db; versions: Versions }> {
+/**
+ * Lee todas las tablas de la cuenta (las políticas filtran por dueña) y arma el Db. Desde el
+ * servidor con el cliente administrador, `ownerId` hace ese filtro.
+ */
+export async function loadDb(supabase: SupabaseClient, ownerId?: string): Promise<{ db: Db; versions: Versions }> {
   const read = async (table: string) => {
-    const { data, error } = await supabase.from(table).select('*');
+    const query = supabase.from(table).select('*');
+    const { data, error } = await (ownerId ? query.eq('owner_id', ownerId) : query);
     if (error) throw error;
     return (data ?? []) as Row[];
   };

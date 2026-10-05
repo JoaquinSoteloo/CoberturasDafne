@@ -7,12 +7,16 @@ import { useStore } from '@/components/store';
 import { Empty, untilLabel } from '@/components/ui';
 import { LiveNow, cameFromShortcut } from '@/components/live-now';
 import { liveEvents } from '@/lib/live';
+import { supabaseBrowser } from '@/lib/supabase/client';
+import type { TransferData } from '@/lib/transfer';
 import { stageCounts } from '@/lib/content';
 import { ars } from '@/lib/money';
 import { byPartyType, collectionPending, dueCollections, duePayments, monthly } from '@/lib/domain';
 
 const daysAgo = (startsAt: string) => { const n = Math.round((Date.now() - new Date(`${startsAt.slice(0, 10)}T12:00`).getTime()) / 86400000); return n <= 1 ? 'fue ayer' : `fue hace ${n} días`; };
 const shortDate = (iso: string) => ({ day: Number(iso.slice(8, 10)), month: new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(new Date(`${iso.slice(0, 10)}T12:00`)).replace('.', '') });
+type Inbox = { id: string; data: TransferData; reason: string; created_at: string };
+const received = (iso: string) => { const n = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); return n <= 0 ? 'hoy' : n === 1 ? 'ayer' : `hace ${n} días`; };
 /** Cuántas cosas de "A resolver" se ven sin desplegar. */
 const TODO_LIMIT = 3;
 
@@ -23,6 +27,9 @@ const TODO_LIMIT = 3;
 export default function Home() {
   const { db, ready } = useStore(); const router = useRouter();
   const [showAll, setShowAll] = useState(false);
+  // Comprobantes que llegaron por el Atajo de iPhone y la IA no pudo registrar solos.
+  const [inbox, setInbox] = useState<Inbox[]>([]);
+  useEffect(() => { void supabaseBrowser().from('pending_receipts').select('id, data, reason, created_at').order('created_at').then(({ data }: { data: unknown }) => setInbox((data as Inbox[] | null) ?? [])); }, []);
   const liveItems = db.coverages.filter(c => c.eventStatus !== 'cancelado').map(c => ({ id: c.id, name: c.name, startsAt: c.startsAt, endsAt: c.endsAt, arriveAt: c.arriveAt, livePosting: c.livePosting, salon: db.salons.find(s => s.id === c.salonId)?.name }));
   // Atajo del ícono ("Fiesta de ahora"): abre directo la que está pasando o por empezar.
   useEffect(() => { if (!ready || !cameFromShortcut()) return; const first = liveEvents(liveItems)[0]; if (first) router.replace(`/coberturas/${first.id}`); else window.history.replaceState(null, '', '/'); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -44,7 +51,11 @@ export default function Home() {
     ...upcoming.filter(c => (!c.assignments.length && !c.dafneGoes) || c.assignments.some(a => a.confirmation !== 'confirmada')).map(c => ({ c, text: !c.assignments.length ? 'Sin CM asignada' : `${c.assignments.filter(a => a.confirmation !== 'confirmada').length} CM por confirmar` })),
   ];
   // Una tarjeta por fiesta, con todo lo que le falta.
-  const todo = [...issues.reduce((m, { c, text }) => { const t = m.get(c.id); if (t) t.lines.push(text); else m.set(c.id, { id: c.id, title: c.name, when: c.startsAt.slice(0, 10) < today ? daysAgo(c.startsAt) : untilLabel(c.startsAt).toLowerCase(), lines: [text] }); return m; }, new Map<string, { id: string; title: string; when: string; lines: string[] }>()).values()];
+  type Todo = { id: string; href: string; title: string; when: string; lines: string[] };
+  const todo: Todo[] = [
+    ...inbox.map(p => ({ id: `r-${p.id}`, href: `/pagos?revisar=${p.id}`, title: 'Comprobante para revisar', when: received(p.created_at), lines: [[p.data.amountCents ? ars(p.data.amountCents) : '', p.reason].filter(Boolean).join(' · ')] })),
+    ...issues.reduce((m, { c, text }) => { const t = m.get(c.id); if (t) t.lines.push(text); else m.set(c.id, { id: c.id, href: `/coberturas/${c.id}`, title: c.name, when: c.startsAt.slice(0, 10) < today ? daysAgo(c.startsAt) : untilLabel(c.startsAt).toLowerCase(), lines: [text] }); return m; }, new Map<string, Todo>()).values(),
+  ];
   const shownTodo = showAll ? todo : todo.slice(0, TODO_LIMIT);
   const types = byPartyType(db, String(now.getFullYear()));
 
@@ -62,7 +73,7 @@ export default function Home() {
 
       <section className="attention-panel" aria-labelledby="todo-title"><div className="section-heading"><h2 id="todo-title" className="section-title">A resolver</h2>{todo.length > 0 && <span className="attention-count">{todo.length}</span>}</div>
         {ready && !todo.length ? <p className="home-ok"><CircleCheck size={18}/> Todo en orden: confirmado, entregado y cobrado.</p>
-          : <><ul className="attention-list">{shownTodo.map(t => <li key={t.id}><Link className="attention-item" href={`/coberturas/${t.id}`}><span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate font-bold">{t.title}</span><span className="muted shrink-0 text-xs">{t.when}</span></span>{t.lines.map(l => <span key={l} className="muted text-sm">{l}</span>)}</Link></li>)}</ul>
+          : <><ul className="attention-list">{shownTodo.map(t => <li key={t.id}><Link className="attention-item" href={t.href}><span className="flex items-baseline justify-between gap-3"><span className="min-w-0 truncate font-bold">{t.title}</span><span className="muted shrink-0 text-xs">{t.when}</span></span>{t.lines.map(l => <span key={l} className="muted text-sm">{l}</span>)}</Link></li>)}</ul>
             {todo.length > TODO_LIMIT && <button type="button" className="text-link mt-2 text-sm" onClick={() => setShowAll(v => !v)}>{showAll ? 'Ver menos' : `Ver las ${todo.length}`}</button>}</>}
       </section>
     </div>
