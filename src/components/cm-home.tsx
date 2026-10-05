@@ -1,13 +1,12 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock, FolderUp, Radio, UserRound, Wallet, MapPin, Phone, LogOut, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
+import { CalendarDays, Clock, FolderUp, Radio, UserRound, Wallet, MapPin, Phone, ChevronLeft, ChevronRight, ArrowLeft, Bell, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { ars } from '@/lib/money';
 import { calendarDays, shiftMonth } from '@/lib/calendar';
-import { StoryBars, cap, flash, untilLabel } from './ui';
-import { ThemeToggle } from './theme-toggle';
+import { StoryBars, cap, flash, untilLabel, useSwipe } from './ui';
 import { BrandMark } from './brand';
 import { CmUbers } from './cm-ubers';
 import { CmPayments, type MoneyConcept } from './cm-payments';
@@ -16,7 +15,8 @@ import { StageButton } from './stage-button';
 import { STAGE_LABEL, stageOf, type Stage } from '@/lib/content';
 import { MapPreview } from './map-preview';
 import { WeatherStrip } from './weather-strip';
-import { PushPrompt, PushToggle } from './push-control';
+import { PushPrompt } from './push-control';
+import { HeaderMenu } from './header-menu';
 import { LiveNow, cameFromShortcut } from './live-now';
 import { liveEvents } from '@/lib/live';
 import { InstallHint } from './install-hint';
@@ -51,6 +51,7 @@ function status(d: CmDate): { label: string; tone: 'warn' | 'ok' | 'danger' | 'm
   if (d.confirmation === 'confirmada') return { label: 'Confirmada', tone: 'ok' };
   return { label: 'Confirmar', tone: 'warn' };
 }
+const TABS = [{ id: 'fechas', label: 'Fechas', Icon: CalendarDays }, { id: 'pagos', label: 'Pagos', Icon: Wallet }, { id: 'perfil', label: 'Perfil', Icon: UserRound }] as const;
 const fechaInUrl = () => new URLSearchParams(window.location.search).get('fecha');
 
 /**
@@ -102,6 +103,10 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     else { window.history.replaceState(null, '', window.location.pathname); setOpenId(null); }
   };
 
+  // Deslizar el calendario cambia de mes (el que se ve se anota más abajo, cuando cargan las fechas).
+  const shownRef = useRef('');
+  const swipe = useSwipe(() => { setMonth(shiftMonth(shownRef.current || today().slice(0, 7), 1)); setSelectedDay(null); }, () => { setMonth(shiftMonth(shownRef.current || today().slice(0, 7), -1)); setSelectedDay(null); });
+
   const act = async (key: string, run: () => PromiseLike<{ error: { message: string } | null }>, done: string, celebrate = false) => {
     if (preview) return;
     setBusy(key);
@@ -126,12 +131,16 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   const header = preview
     ? <div className="preview-banner" role="note"><Eye size={18} aria-hidden="true"/><p className="min-w-0 flex-1">Así ve la app {home ? home.name.split(' ')[0] : 'esta CM'}. Desde acá no se puede tocar nada.</p><Link href="/equipo" className="btn btn-secondary btn-small">Volver</Link></div>
     : <header className="cm-header">
-      <BrandMark/>
-      <div className="flex items-center gap-1"><PushToggle className="header-theme"/><ThemeToggle className="header-theme"/><button type="button" className="theme-toggle header-theme" onClick={() => void onSignOut?.()} aria-label="Salir"><LogOut size={18}/><span>Salir</span></button></div>
+      <BrandMark size={30}/>
+      <HeaderMenu email={home?.profile?.email ?? ''} name={home?.name} photoPath={home?.profile?.photo_path} onSignOut={() => void onSignOut?.()}/>
     </header>;
+  // En el celular, las secciones van abajo, al alcance del pulgar (en "Ver como" no: ya está la barra de Dafne).
+  const goTab = (next: typeof tab) => { if (openId) closeDate(); setTab(next); window.scrollTo(0, 0); };
+  const nav = preview ? null : <nav className="bottom-nav cm-bottom-nav" aria-label="Secciones">{TABS.map(({ id, label, Icon }) => <button key={id} type="button" aria-current={tab === id && !openId ? 'page' : undefined} onClick={() => goTab(id)}><Icon size={21}/><span>{label}</span></button>)}</nav>;
+  const pageClass = preview ? 'cm-page' : 'cm-page cm-page-nav';
 
-  if (failed) return <>{header}<Main className="cm-page text-center"><p className="font-bold">No pudimos cargar tus fechas.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet.</p><button className="btn btn-primary mt-4" onClick={() => void load()}>Reintentar</button></Main></>;
-  if (!home) return <>{header}<Main className="cm-page muted text-center text-sm">Cargando tus fechas…</Main></>;
+  if (failed) return <>{header}<Main className={`${pageClass} text-center`}><p className="font-bold">No pudimos cargar tus fechas.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet.</p><button className="btn btn-primary mt-4" onClick={() => void load()}>Reintentar</button></Main></>;
+  if (!home) return <>{header}<Main className={`${pageClass} muted text-center text-sm`}>Cargando tus fechas…</Main></>;
 
   const now = today();
   const upcoming = home.dates.filter(d => d.starts_at.slice(0, 10) >= now);
@@ -139,17 +148,19 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
 
   // ---------- Una fecha, en su pantalla ----------
   const open = openId ? home.dates.find(d => d.id === openId) : undefined;
-  if (openId) return <>{header}<Main className="cm-page space-y-5">
+  if (openId) return <>{header}<Main className={`${pageClass} space-y-5`}>
     <button type="button" className="back-link" onClick={closeDate}><ArrowLeft size={17}/> Mis fechas</button>
-    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick} preview={preview} ubers={home.concepts.filter(c => c.kind === 'expense' && c.coverage_id === open.id)} reload={() => void load()}/>
+    {open ? <DateCard d={open} now={now} busy={busy} answer={answer} tick={tick} preview={preview} fee={home.concepts.find(c => c.kind === 'fee' && c.coverage_id === open.id)} ubers={home.concepts.filter(c => c.kind === 'expense' && c.coverage_id === open.id)} reload={() => void load()}/>
       : <div className="card p-5"><p className="font-bold">Esta fecha ya no está en tu agenda.</p><p className="muted mt-1 text-sm">Puede que Dafne la haya cambiado o quitado.</p></div>}
-  </Main></>;
+  </Main>{nav}</>;
 
   // ---------- Calendario y lista del mes ----------
   const shownMonth = month ?? (upcoming[0]?.starts_at.slice(0, 7) ?? now.slice(0, 7));
   const byDay = new Map<string, CmDate[]>();
   for (const d of home.dates) byDay.set(d.starts_at.slice(0, 10), [...(byDay.get(d.starts_at.slice(0, 10)) ?? []), d]);
-  const monthDates = home.dates.filter(d => d.starts_at.startsWith(shownMonth));
+  shownRef.current = shownMonth;
+  const pastInMonth = home.dates.filter(d => d.starts_at.startsWith(shownMonth) && d.starts_at.slice(0, 10) < now).sort((a, b) => b.starts_at.localeCompare(a.starts_at));
+  const nextDates = upcoming.filter(d => !needsAnswer(d));
   const pickDay = (day: string) => {
     const events = byDay.get(day) ?? [];
     if (events.length === 1) { openDate(events[0].id); return; }
@@ -158,21 +169,27 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
   };
   const moveMonth = (delta: number) => { setMonth(shiftMonth(shownMonth, delta)); setSelectedDay(null); };
 
-  return <>{header}<Main className="cm-page space-y-6">
+  return <>{header}<Main className={`${pageClass} space-y-6`}>
     {!preview && <><InstallHint/><PushPrompt forCm/></>}
-    <div><h1 className="page-title">Hola, {home.name.split(' ')[0]}</h1><p className="muted mt-2">{upcoming.length ? `Tenés ${upcoming.length === 1 ? 'una fiesta' : `${upcoming.length} fiestas`} por delante.` : 'No tenés fiestas por delante.'}</p></div>
+    {tab === 'fechas' || preview ? <>
+    <div><p className="muted text-sm first-letter:uppercase">{new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</p><h1 className="home-hello">Hola, {home.name.split(' ')[0]}</h1></div>
 
     <LiveNow items={home.dates.filter(d => d.event_status !== 'cancelado' && d.confirmation !== 'rechazada').map(d => ({ id: d.id, name: d.name, salon: d.salon, startsAt: d.starts_at, endsAt: d.ends_at, arriveAt: d.arrive_at, livePosting: d.live_posting }))} onOpen={openDate}/>
 
     {toAnswer.length > 0 && <section className="cm-to-answer" aria-labelledby="to-answer-title">
       <h2 id="to-answer-title" className="font-bold">{toAnswer.length === 1 ? 'Tenés una fecha para confirmar' : `Tenés ${toAnswer.length} fechas para confirmar`}</h2>
-      <ul className="cm-rows">{toAnswer.map(d => <li key={d.id}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
+      <ul className="cm-rows">{toAnswer.map(d => <li key={d.id} className="cm-confirm"><DateRow d={d} onOpen={openDate}/>
+        <div className="cm-confirm-actions"><span className="muted min-w-0 flex-1 text-sm">Cobertura <strong className="text-[var(--ink)]">{ars(d.fee_cents)}</strong></span><button type="button" className="btn btn-primary btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button type="button" className="btn btn-secondary btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div>
+      </li>)}</ul>
     </section>}
+    </> : <h1 className="page-title">{tab === 'pagos' ? 'Pagos' : 'Perfil'}</h1>}
 
-    <div className="coverage-view-switch cm-tabs" role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Pagos</button><button role="tab" aria-selected={tab === 'perfil'} className={tab === 'perfil' ? 'selected' : ''} onClick={() => setTab('perfil')}><UserRound size={17}/> Perfil</button></div>
+    <div className={`coverage-view-switch cm-tabs ${preview ? '' : 'cm-tabs-desktop'}`} role="tablist" aria-label="Sección"><button role="tab" aria-selected={tab === 'fechas'} className={tab === 'fechas' ? 'selected' : ''} onClick={() => setTab('fechas')}><CalendarDays size={17}/> Fechas</button><button role="tab" aria-selected={tab === 'pagos'} className={tab === 'pagos' ? 'selected' : ''} onClick={() => setTab('pagos')}><Wallet size={17}/> Pagos</button><button role="tab" aria-selected={tab === 'perfil'} className={tab === 'perfil' ? 'selected' : ''} onClick={() => setTab('perfil')}><UserRound size={17}/> Perfil</button></div>
 
     {tab === 'fechas' ? <section className="space-y-4" aria-label="Mis fechas">
-      <div className="cm-cal card">
+      {nextDates.length > 0 ? <div><h2 className="pay-section-title">Próximas fechas</h2><ul className="cm-rows">{nextDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul></div>
+        : !toAnswer.length && <p className="muted text-center">No tenés fechas por delante.</p>}
+      <div className="cm-cal card" {...swipe}>
         <div className="cm-cal-head">
           <button type="button" className="btn btn-quiet btn-small" aria-label="Mes anterior" onClick={() => moveMonth(-1)}><ChevronLeft size={18}/></button>
           <h2 className="font-bold" aria-live="polite">{monthName(shownMonth)}</h2>
@@ -181,24 +198,21 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
         <div className="cm-cal-week" aria-hidden="true">{['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => <span key={i}>{d}</span>)}</div>
         <div className="cm-cal-grid">{calendarDays(shownMonth).map(day => {
           const events = byDay.get(day) ?? [];
-          const classes = ['cm-cal-day', day.slice(0, 7) !== shownMonth && 'is-outside', day === now && 'is-today', day === selectedDay && 'is-selected', events.length > 0 && 'has-events'].filter(Boolean).join(' ');
+          const classes = ['cm-cal-day', day.slice(0, 7) !== shownMonth && 'is-outside', day === now && 'is-today', day === selectedDay && 'is-selected', events.length > 0 && `has-events tone-${status(events[0]).tone}`].filter(Boolean).join(' ');
           return <button key={day} type="button" className={classes} onClick={() => pickDay(day)} disabled={!events.length}
             aria-label={`${longDay(day)}${events.length ? `: ${events.map(e => `${e.name}, ${status(e).label}`).join('; ')}` : ''}`}>
             <span>{Number(day.slice(8))}</span>
-            {events.length > 0 && <span className="cm-cal-dots">{events.slice(0, 3).map(e => <i key={e.id} className={`dot-${status(e).tone}`}/>)}</span>}
           </button>;
         })}</div>
         <p className="cm-cal-legend"><span><i className="dot-warn"/> Para confirmar</span><span><i className="dot-ok"/> Confirmada</span><span><i className="dot-muted"/> Realizada</span></p>
       </div>
-      {monthDates.length
-        ? <ul className="cm-rows">{monthDates.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul>
-        : <p className="muted text-center">No tenés fechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}.</p>}
+      {pastInMonth.length > 0 && <div><h2 className="pay-section-title">Ya hechas en {monthName(shownMonth).split(' ')[0].toLowerCase()}</h2><ul className="cm-rows">{pastInMonth.map(d => <li key={d.id} id={`dia-${d.starts_at.slice(0, 10)}`} className={d.starts_at.slice(0, 10) === selectedDay ? 'is-selected' : ''}><DateRow d={d} onOpen={openDate}/></li>)}</ul></div>}
       {!preview && <CalendarSubscribe who="cm"/>}
     </section> : tab === 'pagos' ? <CmPayments concepts={home.concepts} preview={preview} onChange={() => void load()}/>
       : <CmProfile key={`${home.profile?.phone}|${home.profile?.alias}|${home.profile?.photo_path}`} profile={home.profile ?? { name: home.name, email: '', phone: '', alias: '', photo_path: null }} preview={preview} onChange={() => void load()}>
           {!preview && <ChangePassword/>}
         </CmProfile>}
-  </Main></>;
+  </Main>{nav}</>;
 }
 
 /** Una línea por fiesta: día, nombre, hora y salón, y su estado. Abre la fecha. */
@@ -213,8 +227,8 @@ function DateRow({ d, onOpen }: { d: CmDate; onOpen: (id: string) => void }) {
 }
 
 /** La fecha completa: la entrada y, abajo, el mapa, la respuesta, el equipo y el contenido. */
-function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }: {
-  d: CmDate; now: string; busy: string; preview?: boolean; ubers: Concept[]; reload: () => void;
+function DateCard({ d, now, busy, answer, tick, preview = false, fee, ubers, reload }: {
+  d: CmDate; now: string; busy: string; preview?: boolean; fee?: Concept; ubers: Concept[]; reload: () => void;
   answer: (d: CmDate, value: 'confirmada' | 'rechazada') => Promise<void>;
   tick: (d: CmDate, item: Item, stage: Stage) => Promise<void>;
 }) {
@@ -232,13 +246,14 @@ function DateCard({ d, now, busy, answer, tick, preview = false, ubers, reload }
       <div className="ticket-stub" aria-label={`De ${time(d.starts_at)}${d.ends_at ? ` a ${time(d.ends_at)}` : ''}`}><time>{time(d.starts_at)}</time>{d.ends_at && <><span className="stub-line" aria-hidden="true"/><time>{time(d.ends_at)}</time></>}</div>
     </div>
     <div className="cm-date-body">
-      {d.event_status === 'pendiente' && <WeatherStrip startsAt={d.starts_at} endsAt={d.ends_at} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
-      {d.address && d.starts_at.slice(0, 10) >= now && <MapPreview address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
       {d.event_status === 'pendiente' && <div className={`cm-answer answer-${d.confirmation}`}>
         {d.confirmation === 'pendiente' && <><p className="font-bold">¿Podés cubrirla? La cobertura es de <span className="whitespace-nowrap">{ars(d.fee_cents)}</span>.</p><div className="flex flex-wrap gap-2"><button className="btn btn-primary" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí, la cubro</button><button className="btn btn-secondary" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>No puedo</button></div></>}
         {d.confirmation === 'confirmada' && <><p><span className="badge badge-success">Confirmaste</span> <span className="muted text-sm">Cobertura {ars(d.fee_cents)}</span></p><button className="btn btn-quiet btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'rechazada')}>Ya no puedo ir</button></>}
         {d.confirmation === 'rechazada' && <><p><span className="badge badge-danger">Avisaste que no podés</span></p><button className="btn btn-secondary btn-small" disabled={!!busy || preview} onClick={() => void answer(d, 'confirmada')}>Sí puedo</button></>}
       </div>}
+      {fee && d.confirmation === 'confirmada' && d.event_status !== 'cancelado' && (d.starts_at.slice(0, 10) < now || d.event_status === 'realizado') && <p className={`cm-fee ${fee.paid_cents >= fee.amount_cents ? 'is-paid' : ''}`}><Wallet size={16} aria-hidden="true"/><span className="min-w-0 flex-1">Cobertura <strong>{ars(fee.amount_cents)}</strong></span><span className="font-bold">{fee.paid_cents >= fee.amount_cents ? 'Cobrada' : fee.paid_cents > 0 ? `Te deben ${ars(fee.amount_cents - fee.paid_cents)}` : 'Te la deben'}</span></p>}
+      {d.event_status === 'pendiente' && <WeatherStrip startsAt={d.starts_at} endsAt={d.ends_at} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/>}
+      {d.address && d.starts_at.slice(0, 10) >= now && <div className="detail-actions"><MapPreview compact address={d.address} label={d.salon} coords={d.lat != null && d.lng != null ? { lat: d.lat, lng: d.lng } : null}/></div>}
       {!!d.schedule?.length && <div><p className="text-sm font-bold">Cronograma de la noche</p><ol className="schedule-list mt-2">{d.schedule.map(m => <li key={m.id}><time>{time(m.at)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify && d.event_status === 'pendiente' && d.confirmation !== 'rechazada' && <span className="schedule-bell" title="Te llega un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Te avisamos 10 minutos antes</span></span>}</li>)}</ol></div>}
       {(d.team.length > 0 || d.dafne_goes) && <div><p className="text-sm font-bold">{d.team.length + (d.dafne_goes ? 1 : 0) > 1 ? 'También cubren' : 'También cubre'}</p><ul className="cm-team">{d.dafne_goes && <li><span className="font-semibold">Dafne</span></li>}{d.team.map((m, i) => <li key={i}><span className="font-semibold">{m.name}</span>{m.confirmation !== 'confirmada' && <span className="muted text-sm"> ({m.confirmation === 'rechazada' ? 'no puede' : 'sin confirmar'})</span>}{m.phone && <a className="text-link inline-flex items-center gap-1" href={`tel:${m.phone.replace(/[^+0-9]/g, '')}`}><Phone size={14}/>{m.phone}</a>}</li>)}</ul></div>}
       {d.live_posting && d.event_status !== 'cancelado' && <p className="live-note"><Radio size={18} aria-hidden="true"/><span><strong>Esta fiesta sale en vivo.</strong> A medida que tengas videos editados, se suben a la cuenta de IG durante la fiesta.</span></p>}

@@ -22,6 +22,10 @@ export const concepts = (db: Db): Concept[] => db.coverages.filter(active).flatM
   ...c.expenses.filter(e => e.advancedBy === 'cm' && e.advancedCmId).map(e => ({ id: `expense:${e.id}`, cmId: e.advancedCmId!, coverageId: c.id, label: `Reintegro ${e.label} · ${c.name}`, amountCents: e.amountCents }))
 ].map(item => { const paidCents = conceptPaid(db, item.id); return { ...item, paidCents, pendingCents: Math.max(0, item.amountCents - paidCents) }; }));
 export const cmPending = (db: Db, cmId: string) => concepts(db).filter(c => c.cmId === cmId).reduce((sum, c) => sum + c.pendingCents, 0);
+/** La fiesta ya pasó (o es hoy): lo que falta cobrar o pagar de ella ya es deuda. */
+export const isDue = (c: Coverage, today: string) => c.startsAt.slice(0, 10) <= today;
+export const dueCollections = (db: Db, today: string) => db.coverages.filter(c => isDue(c, today)).reduce((sum, c) => sum + collectionPending(db, c), 0);
+export const duePayments = (db: Db, today: string) => { const due = new Set(db.coverages.filter(c => isDue(c, today)).map(c => c.id)); return concepts(db).filter(c => due.has(c.coverageId)).reduce((sum, c) => sum + c.pendingCents, 0); };
 export const totalPendingCollections = (db: Db) => db.coverages.reduce((sum, c) => sum + collectionPending(db, c), 0);
 export const totalPendingPayments = (db: Db) => concepts(db).reduce((sum, c) => sum + c.pendingCents, 0);
 export const balanceStatus = (total: number, paid: number): 'sin saldo' | 'pendiente' | 'parcial' | 'saldado' => total <= 0 ? 'sin saldo' : paid <= 0 ? 'pendiente' : paid < total ? 'parcial' : 'saldado';

@@ -76,7 +76,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             {c.dafneGoes&&<p className="text-sm font-semibold">Vas vos{c.assignments.length?', con:':'.'}</p>}{!c.assignments.length?(!c.dafneGoes&&<p className="muted text-sm">Todavía no hay CM asignadas.</p>):<ul className="crew-list">{c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className="crew-row">
               <span className="ledger-avatar" aria-hidden="true">{(cm?.name||'?').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold">{cm?.name||'CM eliminada'}</span><span className="muted text-sm">Honorario {ars(a.feeCents)}</span></span>
-              <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}<Link className="text-link" href={`/pagos?tab=pagos&cm=${a.cmId}&coverage=${id}&action=registrar`}>Registrar pago</Link></span>
+              <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}{pendingConcepts.some(x=>x.cmId===a.cmId&&x.pendingCents>0)&&<Link className="btn btn-secondary btn-small" href={`/pagos?pagar=${a.cmId}`}>Pagar</Link>}</span>
             </li>})}</ul>}
           </div>}
         </li>
@@ -120,8 +120,8 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
               <div className="numbers-collect">
           <p className="numbers-label">Cobro al salón</p>
           {income>0?<><Meter done={got} total={income} label={`Cobrado ${ars(got)} de ${ars(income)}`}/><p className="text-sm">Cobrado {ars(got)} de {ars(income)}</p>
-            {owed>0?<Link href={`/pagos?tab=cobros&coverage=${id}&action=registrar`} className="btn btn-primary mt-3 w-full">Registrar cobro</Link>:over>0?<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobraste {ars(over)} más de lo acordado. <Link href="/pagos?tab=cobros" className="underline">Corregilo en Pagos</Link>.</p>:<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobrado completo</p>}
-            <p className="numbers-hint">Se puede registrar en cualquier momento: antes, durante o después de la fiesta.</p></>
+            {owed>0?<Link href={`/pagos?cobrar=${id}`} className="btn btn-primary mt-3 w-full">Cobrar</Link>:over>0?<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobraste {ars(over)} más de lo acordado. <Link href="/pagos?tab=cobros" className="underline">Corregilo en Pagos</Link>.</p>:<p className="mt-2 text-sm font-bold text-[var(--flash)]">Cobrado completo</p>}
+</>
           :<p className="numbers-hint">{cancelled?'Cancelada, sin cobro.':'Cargá el monto acordado en los datos del evento.'}</p>}
         </div>
       </aside>

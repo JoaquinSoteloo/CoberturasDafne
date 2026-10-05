@@ -59,3 +59,43 @@ test('el comprobante de un cobro ya registrado sin comprobante se reconoce', asy
   assert.equal(findUnreceipted(list, 15000000, null)?.id, 'viejo');
   assert.equal(findUnreceipted(list, 20000000, '2026-10-02'), null);
 });
+
+test('registra solo cuando no hay dudas, y si no, pide revisar', async () => {
+  const { decideTransfer } = await import('../src/lib/transfer.ts');
+  const owner = ['dafne'];
+  const items = [
+    { id: 'fee:nico', cmId: 'isis', coverageId: 'nico', pendingCents: 3260000, startsAt: '2026-09-26T21:00' },
+    { id: 'expense:uber', cmId: 'isis', coverageId: 'nico', pendingCents: 850000, startsAt: '2026-09-26T21:00' },
+    { id: 'fee:luci', cmId: 'isis', coverageId: 'luci', pendingCents: 3260000, startsAt: '2026-10-03T21:00' },
+  ];
+  const collections = [
+    { id: 'nico', startsAt: '2026-09-26T21:00', agreedCents: 18000000, pendingCents: 9000000, client: 'Nicolás Pérez', salon: 'Eclipse' },
+    { id: 'cami', startsAt: '2026-10-03T21:00', agreedCents: 8350000, pendingCents: 8350000, client: 'Familia Ruiz', salon: 'Eclipse Kids' },
+    { id: 'boda', startsAt: '2026-10-13T21:00', agreedCents: 8350000, pendingCents: 8350000, client: 'Sofía y Tomás', salon: 'Eclipse' },
+  ];
+  const decide = (t, extra = {}) => decideTransfer({ t: { ...base, ...t }, cms, ownerWords: owner, items, collections, movements: [], ...extra });
+  const toIsis = { recipientAlias: 'isis.villalba.mp', direction: 'sent' };
+  // Lo de una fiesta (cobertura + Uber): exacto.
+  assert.deepEqual(decide({ ...toIsis, amountCents: 4110000 }), { action: 'pago', cmId: 'isis', conceptIds: ['fee:nico', 'expense:uber'], amountCents: 4110000 });
+  // Todo lo que se le debe.
+  assert.equal(decide({ ...toIsis, amountCents: 7370000 }).action, 'pago');
+  // Un monto que no cierra con nada (le erró en $400): a revisar.
+  assert.deepEqual(decide({ ...toIsis, amountCents: 3220000 }), { action: 'review' });
+  // Dos coberturas iguales: la más vieja primero.
+  assert.deepEqual(decide({ ...toIsis, amountCents: 3260000 }).conceptIds, ['fee:nico']);
+  // Desde "Pagar a Isis" con lo tildado, aunque el comprobante no diga a quién.
+  assert.deepEqual(decide({ amountCents: 3260000, direction: 'sent' }, { hint: { kind: 'pago', cmId: 'isis', conceptIds: ['fee:luci'] } }).conceptIds, ['fee:luci']);
+  // A nadie conocido y sin contexto: a revisar.
+  assert.deepEqual(decide({ amountCents: 3260000, recipientName: 'Martina Gómez', direction: 'sent' }), { action: 'review' });
+
+  const fromSalon = { direction: 'received' };
+  // Cobro: la única fiesta que debe exactamente eso.
+  assert.deepEqual(decide({ ...fromSalon, amountCents: 9000000 }), { action: 'cobro', coverageId: 'nico', amountCents: 9000000 });
+  // Dos fiestas deben lo mismo: decide el remitente; si no se sabe, a revisar.
+  assert.equal(decide({ ...fromSalon, amountCents: 8350000 }).action, 'review');
+  assert.deepEqual(decide({ ...fromSalon, amountCents: 8350000, senderName: 'Sofía Gómez' }).coverageId, 'boda');
+  // Una seña desde "Cobrar" de esa fiesta.
+  assert.deepEqual(decide({ ...fromSalon, amountCents: 3000000 }, { hint: { kind: 'cobro', coverageId: 'boda' } }), { action: 'cobro', coverageId: 'boda', amountCents: 3000000 });
+  // Ya había un cobro de ese importe sin comprobante: se le adjunta.
+  assert.deepEqual(decide({ ...fromSalon, amountCents: 9000000 }, { movements: [{ id: 'c1', kind: 'cobro', amountCents: 9000000, date: '2026-10-02', hasReceipt: false }] }), { action: 'attach', kind: 'cobro', id: 'c1' });
+});

@@ -9,7 +9,7 @@ import { LiveNow, cameFromShortcut } from '@/components/live-now';
 import { liveEvents } from '@/lib/live';
 import { stageCounts } from '@/lib/content';
 import { ars } from '@/lib/money';
-import { collectionPending, monthly, totalPendingCollections, totalPendingPayments } from '@/lib/domain';
+import { byPartyType, collectionPending, dueCollections, duePayments, monthly } from '@/lib/domain';
 
 const daysAgo = (startsAt: string) => { const n = Math.round((Date.now() - new Date(`${startsAt.slice(0, 10)}T12:00`).getTime()) / 86400000); return n <= 1 ? 'fue ayer' : `fue hace ${n} días`; };
 const shortDate = (iso: string) => ({ day: Number(iso.slice(8, 10)), month: new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(new Date(`${iso.slice(0, 10)}T12:00`)).replace('.', '') });
@@ -46,6 +46,7 @@ export default function Home() {
   // Una tarjeta por fiesta, con todo lo que le falta.
   const todo = [...issues.reduce((m, { c, text }) => { const t = m.get(c.id); if (t) t.lines.push(text); else m.set(c.id, { id: c.id, title: c.name, when: c.startsAt.slice(0, 10) < today ? daysAgo(c.startsAt) : untilLabel(c.startsAt).toLowerCase(), lines: [text] }); return m; }, new Map<string, { id: string; title: string; when: string; lines: string[] }>()).values()];
   const shownTodo = showAll ? todo : todo.slice(0, TODO_LIMIT);
+  const types = byPartyType(db, String(now.getFullYear()));
 
   return <div className="home space-y-7">
     <LiveNow items={liveItems} href={id => `/coberturas/${id}`}/>
@@ -70,12 +71,13 @@ export default function Home() {
       <h2 id="month-title" className="section-title">Ganancia estimada de <span className="capitalize">{monthName}</span></h2>
       <p className="profit-value">{ready ? ars(summary.profit) : '—'}</p>
       <div className="home-balances">
-        <Link href="/pagos?tab=cobros" className="home-balance"><ArrowDownLeft size={17}/><span>Por cobrar</span><strong>{ready ? ars(totalPendingCollections(db)) : '—'}</strong></Link>
-        <Link href="/pagos?tab=pagos" className="home-balance"><ArrowUpRight size={17}/><span>Por pagar</span><strong>{ready ? ars(totalPendingPayments(db)) : '—'}</strong></Link>
+        <Link href="/pagos" className="home-balance"><ArrowDownLeft size={17}/><span>Te deben</span><strong>{ready ? ars(dueCollections(db, today)) : '—'}</strong></Link>
+        <Link href="/pagos" className="home-balance"><ArrowUpRight size={17}/><span>Debés</span><strong>{ready ? ars(duePayments(db, today)) : '—'}</strong></Link>
       </div>
       <details className="home-month-detail"><summary>Ver detalle <ChevronDown size={16} aria-hidden="true"/></summary>
         <dl className="profit-breakdown"><div><dt>Ingresos acordados</dt><dd>{ars(summary.income)}</dd></div><div><dt>Costos previstos</dt><dd>{ars(summary.costs)}</dd></div><div><dt>Cobrado</dt><dd>{ars(summary.collected)}</dd></div><div><dt>Pagado</dt><dd>{ars(summary.paid)}</dd></div></dl>
-        <p className="muted mt-3 text-xs leading-relaxed">Según la fecha de cada fiesta. Incluye coberturas, Ubers y gastos; no es plata disponible.</p>
+        <p className="mt-3 text-xs leading-relaxed text-[#bdb5d6]">Según la fecha de cada fiesta. Incluye coberturas, Ubers y gastos; no es plata disponible.</p>
+        {types.length > 0 && <div className="home-types"><p className="font-bold">Fiestas de {now.getFullYear()} por tipo</p><ul>{types.map(t => <li key={t.type}><span className="min-w-0 flex-1"><span className="block font-semibold">{t.type}</span><span className="text-xs text-[#bdb5d6]">{t.count === 1 ? '1 fiesta' : `${t.count} fiestas`} · {ars(Math.round(t.profitCents / t.count))} promedio</span></span><strong>{ars(t.profitCents)}</strong></li>)}</ul></div>}
       </details>
     </section>
   </div>;

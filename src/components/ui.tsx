@@ -55,3 +55,11 @@ export function flash(){
   const el=document.createElement('div');el.className='camera-flash';el.setAttribute('aria-hidden','true');
   document.body.appendChild(el);el.addEventListener('animationend',()=>el.remove());
 }
+/** Deslizar el dedo a los costados (para pasar de mes en un calendario). Izquierda = siguiente. */
+export function useSwipe(onLeft:()=>void,onRight:()=>void){
+  const start=useRef<{x:number;y:number}|null>(null);
+  return {
+    onTouchStart:(e:React.TouchEvent)=>{const t=e.touches[0];start.current={x:t.clientX,y:t.clientY}},
+    onTouchEnd:(e:React.TouchEvent)=>{const from=start.current;start.current=null;if(!from)return;const t=e.changedTouches[0];const dx=t.clientX-from.x,dy=t.clientY-from.y;if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0)onLeft();else onRight()}},
+  };
+}

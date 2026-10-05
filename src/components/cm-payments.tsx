@@ -1,14 +1,14 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, FileCheck2 } from 'lucide-react';
-import { dayKey, shiftMonth } from '@/lib/calendar';
+import { ChevronDown, FileCheck2 } from 'lucide-react';
+import { dayKey } from '@/lib/calendar';
 import { cmSummary } from '@/lib/cm-summary';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { openReceipt } from '@/lib/receipts';
 import { ars, dateLabel } from '@/lib/money';
 import { tripSummary } from '@/lib/trip';
-import { Meter, cap, shortDay } from './ui';
+import { cap, shortDay } from './ui';
 import { ReceiptControl } from './receipt-control';
 
 export type PaymentLine = { date: string; amount_cents: number; receipt_path: string | null };
@@ -53,62 +53,49 @@ function Line({ c, preview, onChange }: { c: MoneyConcept; preview: boolean; onC
 }
 
 /**
- * "Mis pagos" de la CM, todo junto: arriba lo que le falta cobrar (coberturas y Ubers) y después
- * cada mes con lo que trabajó. En cada fiesta, cuánto cobró y cuánto le falta, y los comprobantes:
- * el recibo del viaje (lo sube ella) y la transferencia de Dafne (cuando le pagó).
+ * Pagos de la CM: arriba lo que le deben (de fiestas que ya hizo) y de qué es; lo que ganó en el
+ * mes y en el año; y cada fiesta en una línea con "Cobrado" o "Te deben". Al tocarla, el detalle
+ * con los comprobantes: el recibo del viaje (lo sube ella) y la transferencia de Dafne.
  */
 export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyConcept[]; preview: boolean; onChange: () => void }) {
-  const s = cmSummary(concepts, dayKey(new Date()));
-  const months = [...new Set(concepts.map(c => c.starts_at.slice(0, 7)))].sort().reverse();
-  // Se ve un mes por vez. Arranca en el actual; si no trabajó este mes, en el último que trabajó.
-  const thisMonth = dayKey(new Date()).slice(0, 7);
-  const [month, setMonth] = useState(() => months.includes(thisMonth) || !months.length ? thisMonth : months[0]);
+  const today = dayKey(new Date());
+  const s = cmSummary(concepts, today);
+  const done = (c: MoneyConcept) => c.starts_at.slice(0, 10) <= today;
+  const parties = [...new Set(concepts.map(c => c.coverage_id))].map(id => {
+    const lines = concepts.filter(c => c.coverage_id === id).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'fee' ? -1 : 1));
+    const total = sum(lines, c => c.amount_cents), paid = sum(lines, c => Math.min(c.paid_cents, c.amount_cents));
+    return { id, lines, first: lines[0], total, owed: total - paid };
+  }).sort((a, b) => b.first.starts_at.localeCompare(a.first.starts_at));
+  const owing = parties.filter(p => p.owed > 0 && done(p.first)).reverse();
+  const later = parties.filter(p => !done(p.first)).reverse();
+  const month = today.slice(0, 7);
+  const earnedMonth = sum(concepts.filter(c => c.kind === 'fee' && done(c) && c.starts_at.startsWith(month)), c => c.amount_cents);
+  const months = [...new Set(parties.filter(p => done(p.first)).map(p => p.first.starts_at.slice(0, 7)))];
+  const owedText = (p: (typeof parties)[number]) => p.lines.filter(c => c.amount_cents > c.paid_cents).map(c => `${c.kind === 'fee' ? 'cobertura' : 'Uber'} ${ars(c.amount_cents - c.paid_cents)}`).join(' + ');
 
   return <section className="space-y-6" aria-label="Mis pagos">
-    <div className="card pay-summary">
-      <p className="pay-summary-kicker">{s.year} hasta hoy</p>
-      <div className="pay-summary-grid">
-        <div><p className="pay-summary-label">Ganaste</p><p className="pay-summary-value">{ars(s.earned)}</p><p className="muted text-sm">{s.parties === 1 ? 'en 1 fiesta' : `en ${s.parties} fiestas`}</p></div>
-        <div><p className="pay-summary-label">{s.owed > 0 ? 'Te falta cobrar' : 'Estás al día'}</p><p className={`pay-summary-value ${s.owed > 0 ? 'is-owed' : ''}`}>{ars(s.owed)}</p>{s.owed > 0 && <p className="muted text-sm">Coberturas {ars(s.owedFees)} · Ubers {ars(s.owedUbers)}</p>}</div>
-      </div>
-      {s.earned > 0 && <div className="grid gap-1"><Meter done={s.collected} total={s.earned} label={`Ya cobraste ${ars(s.collected)} de ${ars(s.earned)}`}/><p className="muted text-sm">Ya cobraste {ars(s.collected)} de {ars(s.earned)}</p></div>}
-      {s.upcoming > 0 && <p className="text-sm">Más adelante: <strong>{ars(s.upcoming)}</strong> de fiestas que vienen.</p>}
-      <p className="muted text-xs">Los Ubers no suman a tu ganancia: son viáticos que cubre la empresa.</p>
+    <div className="pay-balance">
+      <p className="pay-balance-label">{s.owed > 0 ? 'Te deben' : 'Estás al día'}</p>
+      <p className={`pay-balance-value ${s.owed > 0 ? 'is-due' : ''}`}>{ars(s.owed)}</p>
+      {owing.length > 0 && <ul className="cm-owing">{owing.map(p => <li key={p.id}><span className="min-w-0 flex-1 truncate">{p.first.coverage_name}</span><span className="shrink-0">{owedText(p)}</span></li>)}</ul>}
     </div>
+    <div className="grid grid-cols-2 gap-3">
+      <div className="card px-4 py-3"><p className="muted text-sm">Ganaste en {monthTitle(month).split(' ')[0].toLowerCase()}</p><p className="cm-earned">{ars(earnedMonth)}</p></div>
+      <div className="card px-4 py-3"><p className="muted text-sm">En {s.year}</p><p className="cm-earned">{ars(s.earned)}</p></div>
+    </div>
+    {later.length > 0 && <p className="muted -mt-2 px-1 text-sm">Más adelante: {later.map(p => `${p.first.coverage_name} ${ars(p.total)}`).join(' · ')}</p>}
 
-    <div className="pay-month-nav" role="group" aria-label="Mes">
-      <button className="btn btn-quiet !px-2" aria-label="Mes anterior" onClick={() => setMonth(shiftMonth(month, -1))}><ChevronLeft size={20}/></button>
-      <h2 className="section-title" aria-live="polite">{monthTitle(month)}</h2>
-      <button className="btn btn-quiet !px-2" aria-label="Mes siguiente" onClick={() => setMonth(shiftMonth(month, 1))}><ChevronRight size={20}/></button>
-    </div>
-    {!months.includes(month) && <p className="muted text-center">No trabajaste fiestas en {monthTitle(month).toLowerCase()}.</p>}
-    {months.filter(m => m === month).map(m => {
-      const items = concepts.filter(c => c.starts_at.startsWith(m));
-      const parties = [...new Set(items.map(c => c.coverage_id))];
-      const total = sum(items, c => c.amount_cents), paid = sum(items, c => Math.min(c.paid_cents, c.amount_cents));
-      const earned = sum(items.filter(c => c.kind === 'fee'), c => c.amount_cents);
-      return <section key={m} className="pay-month" aria-label={monthTitle(m)}>
-        <div className="pay-month-head">
-          <p className="muted text-sm">{parties.length === 1 ? '1 fiesta' : `${parties.length} fiestas`} · coberturas {ars(earned)}</p>
-          <Meter done={paid} total={total} label={`Cobraste ${ars(paid)} de ${ars(total)}`}/>
-          <p className="muted text-sm">Cobraste {ars(paid)} de {ars(total)}{total > paid ? ` · te falta ${ars(total - paid)}` : ''}</p>
-        </div>
-        <div className="space-y-3">{parties.map(id => {
-          const lines = items.filter(c => c.coverage_id === id).sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'fee' ? -1 : 1));
-          const first = lines[0]; const day = shortDay(first.starts_at);
-          const t = sum(lines, c => c.amount_cents), p = sum(lines, c => Math.min(c.paid_cents, c.amount_cents));
-          // Cerrada: la fiesta, su barra y cuánto falta. Al tocarla se ve el detalle con los comprobantes.
-          return <details key={id} className="card pay-party">
-            <summary>
-              <span className="flex items-center gap-3"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span><span className="min-w-0 flex-1"><span className="block truncate font-bold">{first.coverage_name}</span></span>
-                {p >= t ? <span className="badge badge-success">Cobrado</span> : <span className="badge badge-warn">Te falta {ars(t - p)}</span>}
-                <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></span>
-              <span className="grid gap-1"><Meter done={p} total={t} label={`Cobraste ${ars(p)} de ${ars(t)}`}/><span className="muted text-sm">Cobraste {ars(p)} de {ars(t)} · tocá para ver el detalle</span></span>
-            </summary>
-            <ul className="mt-3 space-y-2">{lines.map(c => <Line key={`${c.kind}-${c.expense_id ?? c.coverage_id}`} c={c} preview={preview} onChange={onChange}/>)}</ul>
-          </details>;
-        })}</div>
-      </section>;
-    })}
+    {months.length > 0 ? <div className="space-y-5">{months.map(m => <section key={m} aria-label={monthTitle(m)}>
+      <h2 className="pay-section-title">{monthTitle(m)}</h2>
+      <ul className="card pay-list">{parties.filter(p => done(p.first) && p.first.starts_at.startsWith(m)).map(p => { const day = shortDay(p.first.starts_at);
+        return <li key={p.id}><details className="cm-party">
+          <summary className="pay-row"><span className="ledger-date"><strong>{day.day}</strong>{day.month}</span>
+            <span className="min-w-0 flex-1"><span className="block truncate font-bold">{p.first.coverage_name}</span><span className="muted block truncate text-sm">{p.lines.map(c => c.kind === 'fee' ? 'Cobertura' : 'Uber').join(' + ')} · {ars(p.total)}</span></span>
+            {p.owed <= 0 ? <span className="badge badge-success">Cobrado</span> : <span className="badge badge-warn">{p.owed < p.total ? `Faltan ${ars(p.owed)}` : 'Te deben'}</span>}
+            <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></summary>
+          <ul className="space-y-2 pb-3">{p.lines.map(c => <Line key={`${c.kind}-${c.expense_id ?? c.coverage_id}`} c={c} preview={preview} onChange={onChange}/>)}</ul>
+        </details></li>; })}</ul>
+    </section>)}</div> : <p className="muted text-center">Cuando hagas tu primera fiesta, acá vas a ver lo que cobrás.</p>}
+    <p className="muted text-xs">Los Ubers son viáticos que cubre la empresa: no suman a lo que ganaste.</p>
   </section>;
 }

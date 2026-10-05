@@ -9,12 +9,13 @@ import { Modal, MoneyField, flash } from '@/components/ui';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, ScanLine, TriangleAlert } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { attachReceipt, shrink } from '@/lib/receipts';
-import { classifyTransfer, conceptsFor, findUnreceipted, matchCm, matchCollection, type TransferData } from '@/lib/transfer';
+import { classifyTransfer, conceptsFor, findUnreceipted, matchCm, matchCollection, type TransferData, type TransferHint } from '@/lib/transfer';
 import { takeTransfer } from '@/lib/transfer-handoff';
 import { ReceiptControl } from '@/components/receipt-control';
-import { PaymentsByEvent } from '@/components/payments-by-event';
+import { PayOverview } from '@/components/pay-overview';
+import { ReceiptIntakeButton } from '@/components/receipt-intake';
 import { MpTransfer } from '@/components/mp-transfer';
-import { allocatePayment, byPartyType, collectionPending, concepts, expectedIncome, overCollected, paymentTotal, totalPendingCollections, totalPendingPayments, validateCollection, validateCollectionEdit } from '@/lib/domain';
+import { allocatePayment, collectionPending, concepts, expectedIncome, overCollected, paymentTotal, validateCollection, validateCollectionEdit } from '@/lib/domain';
 import type { Db } from '@/lib/types';
 import { ars, dateLabel } from '@/lib/money';
 import { newId } from '@/lib/repository';
@@ -28,7 +29,7 @@ function PaymentsContent(){
   const [coverageId,setCoverageId]=useState(targetCoverage);const [cmId,setCmId]=useState(targetCm);const [selected,setSelected]=useState<string[]>(initialConcepts.map(x=>x.id));const [amount,setAmount]=useState(params.get('tab')==='pagos'?initialConcepts.reduce((s,x)=>s+x.pendingCents,0):initialCoverage?collectionPending(db,initialCoverage):0);const [date,setDate]=useState(today());const [notes,setNotes]=useState('');
   // Comprobante de transferencia: la IA lo lee y la app decide si es un pago a una CM (va a su alias o nombre)
   // o un cobro de un salón (la plata es para Dafne), y de qué fiesta por el importe. El archivo se adjunta solo al guardar.
-  const [transferFile,setTransferFile]=useState<File|null>(null);const [scanning,setScanning]=useState(false);const [scanInfo,setScanInfo]=useState('');const scanInput=useRef<HTMLInputElement>(null);const topInput=useRef<HTMLInputElement>(null);
+  const [transferFile,setTransferFile]=useState<File|null>(null);const [scanning,setScanning]=useState(false);const [scanInfo,setScanInfo]=useState('');const scanInput=useRef<HTMLInputElement>(null);
   const [unsure,setUnsure]=useState<{r:TransferData;file:File}|null>(null);
   const [pendingReceipt,setPendingReceipt]=useState<{target:'payment'|'collection';id:string;file:File;sawSaving:boolean}|null>(null);
   useEffect(()=>{
@@ -42,23 +43,23 @@ function PaymentsContent(){
   },[pendingReceipt,saveState,update]);
   const ownerWords=email.split('@')[0].split(/[^a-zA-Z]+/).filter(w=>w.length>=3);
   const read=(r:TransferData)=>`${r.amountCents?ars(r.amountCents):'monto sin leer'}${r.date?` del ${dateLabel(r.date)}`:''}`;
-  const applyPago=(r:TransferData,file:File)=>{
+  const applyPago=(r:TransferData,file:File,preferCm?:string)=>{
     const amt=r.amountCents??0;setTab('pagos');setTransferFile(file);setReview(false);setError('');setDate(r.date??today());setNotes(r.operation?`Operación ${r.operation}`:'');setCoverageId('');
-    const cm=matchCm(db.cms,r);
+    const cm=matchCm(db.cms,r)??db.cms.find(x=>x.id===preferCm)??null;
     if(cm){const items=concepts(db).filter(x=>x.cmId===cm.id&&x.pendingCents>0);setCmId(cm.id);setSelected(conceptsFor(items,amt));setAmount(amt);setScanInfo(`Pago a ${cm.name}: ${read(r)}. Revisá los conceptos y confirmá.`);}
     else{setCmId('');setSelected([]);setAmount(amt);setScanInfo(`Pago de ${read(r)}${r.recipientName?` a ${r.recipientName}`:''}. No reconocí a qué CM: elegila${r.recipientAlias?` (alias ${r.recipientAlias})`:''}. Tip: cargá su alias en Equipo y la próxima la reconoce sola.`);}
     setModal(true);
   };
-  const applyCobro=(r:TransferData,file:File)=>{
+  const applyCobro=(r:TransferData,file:File,preferCoverage?:string)=>{
     const amt=r.amountCents??0;setTab('cobros');setTransferFile(file);setReview(false);setError('');setDate(r.date??today());setNotes(r.operation?`Operación ${r.operation}`:'');setCmId('');setSelected([]);setAmount(amt);
-    const match=matchCollection(db.coverages.map(c=>({id:c.id,startsAt:c.startsAt,agreedCents:expectedIncome(c),pendingCents:collectionPending(db,c),client:c.client,salon:db.salons.find(s=>s.id===c.salonId)?.name??''})),amt,r.date,r.senderName);
+    const match=preferCoverage?{id:preferCoverage}:matchCollection(db.coverages.map(c=>({id:c.id,startsAt:c.startsAt,agreedCents:expectedIncome(c),pendingCents:collectionPending(db,c),client:c.client,salon:db.salons.find(s=>s.id===c.salonId)?.name??''})),amt,r.date,r.senderName);
     setCoverageId(match?.id??'');
     setScanInfo(match?`Cobro de ${read(r)}${r.senderName?` de ${r.senderName}`:''}: es de ${db.coverages.find(c=>c.id===match.id)?.name}. Revisá y confirmá.`:`Cobro de ${read(r)}${r.senderName?` de ${r.senderName}`:''}. No encontré una fiesta con ese saldo: elegila.`);
     setModal(true);
   };
   // hint: si se cargó desde "Registrar cobro" o "Liquidar CM" y no se pudo saber qué es, se toma esa.
   // Con lo leído: cobro de un salón o pago a una CM, ya completo para confirmar.
-  const applyRead=(r:TransferData,file:File,hint?:'cobros'|'pagos')=>{
+  const applyRead=(r:TransferData,file:File,hint?:'cobros'|'pagos',ctx?:TransferHint)=>{
     const kind=classifyTransfer(db.cms,r,ownerWords)?.kind??(hint==='cobros'?'cobro':hint==='pagos'?'pago':null);
     // Antes de crear uno nuevo: ¿es el comprobante de un cobro o pago ya registrado que no lo tiene?
     if(kind&&r.amountCents){
@@ -68,7 +69,7 @@ function PaymentsContent(){
         :findUnreceipted(db.cmPayments.filter(p=>!cm||p.cmId===cm.id).map(p=>({id:p.id,amountCents:paymentTotal(p),date:p.date,hasReceipt:!!p.receiptPath})),r.amountCents,r.date);
       if(found){setExisting({kind,id:found.id,r,file});return;}
     }
-    if(kind==='pago')applyPago(r,file);else if(kind==='cobro')applyCobro(r,file);else setUnsure({r,file});
+    if(kind==='pago')applyPago(r,file,ctx?.cmId);else if(kind==='cobro')applyCobro(r,file,ctx?.coverageId);else setUnsure({r,file});
   };
   const [existing,setExisting]=useState<{kind:'cobro'|'pago';id:string;r:TransferData;file:File}|null>(null);
   const [attaching,setAttaching]=useState(false);
@@ -88,7 +89,7 @@ function PaymentsContent(){
   };
   // Comprobante leído desde el inicio ("Cargar comprobante"): se abre acá ya completo.
   // (No se toca la dirección al abrirlo: cambiarla hace que Pagos se vuelva a armar y se pierda lo abierto.)
-  useEffect(()=>{const h=takeTransfer();if(h)applyRead(h.data,h.file);},[]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{const h=takeTransfer();if(h)applyRead(h.data,h.file,h.hint?.kind==='cobro'?'cobros':h.hint?.kind==='pago'?'pagos':undefined,h.hint);},[]); // eslint-disable-line react-hooks/exhaustive-deps
   const scanTransfer=async(file?:File,hint?:'cobros'|'pagos')=>{
     if(!file)return;
     setScanning(true);setScanInfo('');setError('');setReview(false);
@@ -106,17 +107,13 @@ function PaymentsContent(){
   const [editing,setEditing]=useState<{kind:'cobro'|'pago';id:string}|null>(null);
   const overList=db.coverages.map(c=>({c,over:overCollected(db,c)})).filter(x=>x.over>0);
   const open=(kind:'cobros'|'pagos',target='')=>{setTransferFile(null);setScanInfo('');setReview(false);setTab(kind);setCoverageId(kind==='cobros'?target:'');setCmId(kind==='pagos'?target:'');const items=concepts(db).filter(x=>x.cmId===target&&x.pendingCents>0);setSelected(kind==='pagos'?items.map(x=>x.id):[]);const c=db.coverages.find(c=>c.id===target);setAmount(kind==='pagos'?items.reduce((s,x)=>s+x.pendingCents,0):c?collectionPending(db,c):0);setDate(today());setNotes('');setError('');setModal(true)};
-  const openFor=(coverageId:string,target:string)=>{open('pagos',target);const items=concepts(db).filter(x=>x.cmId===target&&x.coverageId===coverageId&&x.pendingCents>0);setSelected(items.map(x=>x.id));setAmount(items.reduce((s,x)=>s+x.pendingCents,0));};
   const available=db.coverages.filter(c=>collectionPending(db,c)>0);const availableCms=db.cms.filter(cm=>concepts(db).some(x=>x.cmId===cm.id&&x.pendingCents>0));const cmConcepts=concepts(db).filter(x=>x.cmId===cmId&&x.pendingCents>0);const selectedTotal=cmConcepts.filter(x=>selected.includes(x.id)).reduce((s,x)=>s+x.pendingCents,0);
   const saveCollection=(e:React.FormEvent)=>{e.preventDefault();const message=validateCollection(db,coverageId,amount);if(message){setError(message);return}if(!date){setError('Elegí una fecha.');return}if(!review){setReview(true);return;}const id=newId();update(db=>({...db,collections:[...db.collections,{id,coverageId,date,amountCents:amount,notes:notes.trim()}]}));if(transferFile){setPendingReceipt({target:'collection',id,file:transferFile,sawSaving:false});setTransferFile(null);setScanInfo('');}setModal(false);flash();toast.success(transferFile?'Cobro registrado con su comprobante.':'Cobro registrado')};
   const savePayment=(e:React.FormEvent)=>{e.preventDefault();try{const allocations=allocatePayment(db,cmId,selected,amount);if(!date)throw new Error('Elegí una fecha.');if(!review){setReview(true);return;}const id=newId();update(db=>({...db,cmPayments:[...db.cmPayments,{id,cmId,date,allocations,notes:notes.trim()}]}));if(transferFile){setPendingReceipt({target:'payment',id,file:transferFile,sawSaving:false});setTransferFile(null);setScanInfo('');}setModal(false);flash();toast.success(transferFile?'Pago registrado con su comprobante.':'Pago registrado. Podés adjuntar la transferencia desde la fiesta.')}catch(x){setError(x instanceof Error?x.message:'No se pudo registrar el pago.')}};
-  const isIn=tab==='cobros';
-  return <div className="space-y-7"><div className="page-heading"><h1 className="page-title">Pagos</h1><input ref={topInput} type="file" accept="image/*,application/pdf" hidden onChange={e=>{void scanTransfer(e.target.files?.[0]);e.target.value='';}}/><button className="btn btn-secondary btn-small" disabled={scanning} onClick={()=>topInput.current?.click()} title="Cobro o pago: la app se da cuenta sola"><ScanLine size={16}/>{scanning?'Leyendo…':'Cargar comprobante'}</button></div>
-    <div className="coverage-view-switch" role="tablist" aria-label="Tipo de movimiento"><button role="tab" aria-selected={isIn} className={isIn?'selected':''} onClick={()=>setTab('cobros')}><ArrowDownLeft size={17}/> Cobros del salón</button><button role="tab" aria-selected={!isIn} className={!isIn?'selected':''} onClick={()=>setTab('pagos')}><ArrowUpRight size={17}/> Pagos a las CM</button></div>
-    {isIn&&overList.length>0&&<section className="over-warning" aria-label="Cobrado de más"><p className="font-bold"><TriangleAlert size={17}/> Hay cobros por encima de lo acordado</p><ul>{overList.map(({c,over})=>{const last=db.collections.filter(x=>x.coverageId===c.id).sort((a,b)=>b.date.localeCompare(a.date))[0];return <li key={c.id}><span>{c.name}: cobraste <b>{ars(over)}</b> de más.</span>{last&&<button className="btn btn-secondary btn-small" onClick={()=>setEditing({kind:'cobro',id:last.id})}>Corregir cobro</button>}</li>})}</ul><p className="text-sm">Puede ser un cobro cargado antes de bajar el acordado. Si el salón realmente pagó de más, dejalo y anotá la devolución en las observaciones.</p></section>}
-    <section className="ledger-card card" aria-labelledby="ledger-title"><div className="ledger-head"><div><h2 id="ledger-title" className="section-title">{isIn?'Falta cobrar':'Falta pagar'}</h2><p className="ledger-total">{ars(isIn?totalPendingCollections(db):totalPendingPayments(db))}</p></div>{(isIn?available.length:availableCms.length)>0&&<button className="text-link" onClick={()=>open(isIn?'cobros':'pagos')}>{isIn?'Cobro sin comprobante':'Pago sin comprobante'}</button>}</div></section>
-    <PaymentsByEvent key={tab} db={db} kind={tab} onRegister={(coverageId,cmId)=>cmId?openFor(coverageId,cmId):open('cobros',coverageId)} onEdit={setEditing}/>
-    {(()=>{const year=today().slice(0,4);const types=byPartyType(db,year);return types.length>0&&<section className="card party-types" aria-labelledby="types-title"><h2 id="types-title" className="section-title">Fiestas de {year} por tipo</h2><ul>{types.map(t=><li key={t.type}><span className="min-w-0 flex-1"><span className="block font-bold">{t.type}</span><span className="muted text-sm">{t.count===1?'1 fiesta':`${t.count} fiestas`} · {ars(Math.round(t.profitCents/t.count))} de ganancia promedio</span></span><strong>{ars(t.profitCents)}</strong></li>)}</ul><p className="muted mt-3 text-xs">Ganancia estimada, sin las canceladas.</p></section>})()}
+    const initialSheet=params.get('pagar')?{kind:'pagar' as const,cmId:params.get('pagar')!}:params.get('cobrar')?{kind:'cobrar' as const,coverageId:params.get('cobrar')!}:null;
+  return <div className="space-y-6"><div className="page-heading"><h1 className="page-title">Pagos</h1><ReceiptIntakeButton className="btn btn-secondary btn-small" icon={<ScanLine size={16}/>} label="Comprobantes"/></div>
+    {overList.length>0&&<section className="over-warning" aria-label="Cobrado de más"><p className="font-bold"><TriangleAlert size={17}/> Hay cobros por encima de lo acordado</p><ul>{overList.map(({c,over})=>{const last=db.collections.filter(x=>x.coverageId===c.id).sort((a,b)=>b.date.localeCompare(a.date))[0];return <li key={c.id}><span>{c.name}: cobraste <b>{ars(over)}</b> de más.</span>{last&&<button className="btn btn-secondary btn-small" onClick={()=>setEditing({kind:'cobro',id:last.id})}>Corregir cobro</button>}</li>})}</ul><p className="text-sm">Puede ser un cobro cargado antes de bajar el acordado. Si el salón realmente pagó de más, dejalo y anotá la devolución en las observaciones.</p></section>}
+    <PayOverview db={db} initial={initialSheet} onEdit={setEditing} onManualCollect={id=>open('cobros',id)} onManualPay={(cm,ids,total)=>{open('pagos',cm);setSelected(ids);setAmount(total);}}/>
     {editing&&<EditMovement kind={editing.kind} id={editing.id} db={db} update={update} undoable={undoable} onClose={()=>setEditing(null)}/>}
     {existing&&<Modal title="¿Es de un movimiento que ya cargaste?" onClose={()=>setExisting(null)}><div className="space-y-4"><p>Este comprobante ({read(existing.r)}) parece ser de <strong>{existingLabel(existing)}</strong>, que todavía no tiene comprobante.</p><div className="grid gap-2"><button className="btn btn-primary" disabled={attaching} onClick={()=>void attachToExisting()}><Paperclip size={17}/>{attaching?'Adjuntando…':existing.kind==='cobro'?'Adjuntar a ese cobro':'Adjuntar a ese pago'}</button><button className="btn btn-secondary" disabled={attaching} onClick={()=>{const e=existing;setExisting(null);if(e.kind==='cobro')applyCobro(e.r,e.file);else applyPago(e.r,e.file);}}>No, es {existing.kind==='cobro'?'un cobro nuevo':'un pago nuevo'}</button></div></div></Modal>}
     {unsure&&<Modal title="¿Qué es esta transferencia?" onClose={()=>setUnsure(null)}><div className="space-y-4"><p>{read(unsure.r)}{unsure.r.recipientName?` · para ${unsure.r.recipientName}`:''}{unsure.r.senderName?` · de ${unsure.r.senderName}`:''}</p><p className="muted text-sm">No pude saber si te la mandaron o la mandaste vos.</p><div className="grid gap-2"><button className="btn btn-primary" onClick={()=>{const u=unsure;setUnsure(null);applyCobro(u.r,u.file);}}><ArrowDownLeft size={17}/> Me pagó un salón</button><button className="btn btn-secondary" onClick={()=>{const u=unsure;setUnsure(null);applyPago(u.r,u.file);}}><ArrowUpRight size={17}/> Le pagué a una CM</button></div></div></Modal>}
