@@ -36,8 +36,10 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const confirmCm=(assignmentId:string)=>{update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,assignments:row.assignments.map(x=>x.id===assignmentId?{...x,confirmation:'confirmada'}:x)}:row)}));flash();toast.success('CM confirmada')};
   const setStage=(itemId:string,stage:Stage)=>{
     const willComplete=stage==='drive'&&c.checklist.every(item=>item.id===itemId||stageOf(item)==='drive');
-    update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,checklist:row.checklist.map(item=>item.id===itemId?{...item,stage,done:stage==='drive'}:item)}:row)}));
-    if(willComplete){flash();toast.success('Todo el contenido está en el Drive')}
+    // Con todo el contenido en el Drive, la fiesta pasa a realizada (la base hace lo mismo cuando lo marca una CM).
+    const finishes=willComplete&&c.eventStatus==='pendiente';
+    update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,...(finishes?{eventStatus:'realizado' as const}:{}),checklist:row.checklist.map(item=>item.id===itemId?{...item,stage,done:stage==='drive'}:item)}:row)}));
+    if(willComplete){flash();toast.success(finishes?'Todo el contenido está en el Drive: la fiesta quedó realizada':'Todo el contenido está en el Drive')}
   };
   const pendingConcepts=concepts(db).filter(x=>x.coverageId===id);
   const toSettle=pendingConcepts.reduce((s,x)=>s+x.pendingCents,0);

@@ -125,7 +125,7 @@ export function CmHome({ onSignOut, previewCmId }: { onSignOut?: () => Promise<v
     const completes = stage === 'drive' && d.checklist.every(x => x.id === item.id || stageOf(x) === 'drive');
     // Se ve marcado al instante; si falla, la recarga lo vuelve atrás.
     setHome(h => h && { ...h, dates: h.dates.map(x => x.id === d.id ? { ...x, checklist: x.checklist.map(i => i.id === item.id ? { ...i, stage, done: stage === 'drive' } : i) } : x) });
-    return act(item.id, () => supabaseBrowser().rpc('cm_set_stage', { p_item: item.id, p_stage: stage }), completes ? 'Todo el contenido está en el Drive' : STAGE_LABEL[stage], completes);
+    return act(item.id, () => supabaseBrowser().rpc('cm_set_stage', { p_item: item.id, p_stage: stage }), completes ? `Todo el contenido está en el Drive${d.event_status === 'pendiente' ? ': la fiesta quedó realizada' : ''}` : STAGE_LABEL[stage], completes);
   };
 
   const header = preview
