@@ -30,8 +30,9 @@
 }
 
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--pista);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+/* El fondo de afuera es el de las barras: si el iPhone deja un hueco arriba o abajo (o al estirar la página), se ve oscuro, no rosa. */
+html{scroll-behavior:smooth;background:var(--night)}
+body{margin:0;min-height:100dvh;background:var(--pista);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 a{color:inherit;text-decoration:none}
@@ -308,6 +309,8 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .pay-balance-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#d8d2ec}
 .pay-balance-value{font-family:var(--display);font-weight:600;font-size:clamp(22px,6.5vw,30px);letter-spacing:-.04em;line-height:1.15;margin-top:6px;white-space:nowrap}
 .pay-balance-value.is-due{color:var(--flash)}
+.pay-balance-clear{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-.03em}
+.pay-balance-clear svg{color:#7fdcb1;flex-shrink:0}
 .pay-balance-month{margin-top:14px;padding-top:10px;border-top:1px solid #ffffff1f;font-size:13px;color:#bdb5d6}
 .pay-section-title{font-size:16px;font-weight:800;margin:0 4px 8px}
 .pay-list{list-style:none;margin:0;padding:2px 14px}

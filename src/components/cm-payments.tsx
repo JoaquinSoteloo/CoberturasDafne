@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, FileCheck2 } from 'lucide-react';
+import { ChevronDown, CircleCheck, FileCheck2 } from 'lucide-react';
 import { dayKey } from '@/lib/calendar';
 import { cmSummary } from '@/lib/cm-summary';
 import { toast } from 'sonner';
@@ -75,8 +75,8 @@ export function CmPayments({ concepts, preview, onChange }: { concepts: MoneyCon
 
   return <section className="space-y-6" aria-label="Mis pagos">
     <div className="pay-balance">
-      <p className="pay-balance-label">{s.owed > 0 ? 'Te deben' : 'Estás al día'}</p>
-      <p className={`pay-balance-value ${s.owed > 0 ? 'is-due' : ''}`}>{ars(s.owed)}</p>
+      {s.owed > 0 ? <><p className="pay-balance-label">Te deben</p><p className="pay-balance-value is-due">{ars(s.owed)}</p></>
+        : <p className="pay-balance-clear"><CircleCheck size={22} aria-hidden="true"/> Estás al día</p>}
       {owing.length > 0 && <ul className="cm-owing">{owing.map(p => <li key={p.id}><span className="min-w-0 flex-1 truncate">{p.first.coverage_name}</span><span className="shrink-0">{owedText(p)}</span></li>)}</ul>}
     </div>
     <div className="grid grid-cols-2 gap-3">
