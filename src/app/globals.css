@@ -304,6 +304,15 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .shortcut-steps{display:grid;gap:10px;margin:0;padding-left:22px;font-size:15px}
 .shortcut-steps li::marker{font-weight:800}
 .review-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:var(--accent-text);font-weight:700;font-size:14px}
+.calendar-subscribe-link{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700;color:var(--ink)}
+.template-types{display:flex;flex-wrap:wrap;gap:8px}
+.template-types button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:700}
+.template-types button.selected{background:var(--night);border-color:var(--night);color:#fff}
+.template-count{display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--flash);color:var(--on-flash);font-size:11px;font-weight:800}
+.template-items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.template-items li{display:flex;align-items:center;gap:4px}
+.template-items .field{flex:1;min-width:0}
+.template-suggest{display:grid;gap:10px;justify-items:start;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:var(--accent-text)}
 .pay-balance{background:var(--night);color:#fff;border-radius:22px;padding:18px 20px}
 .pay-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .pay-balance-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#d8d2ec}

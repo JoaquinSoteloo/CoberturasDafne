@@ -1,9 +1,14 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell, ChevronDown, MessageCircle } from 'lucide-react';
 import { CoverageForm } from '@/components/coverage-form';
+import { startingChecklist, useContentTemplates } from '@/components/content-templates';
+import { templateFor } from '@/lib/templates';
+import { newId } from '@/lib/repository';
+import { partyInvite, waLink } from '@/lib/whatsapp';
+import { mapsSearchUrl } from '@/lib/maps';
 import { useStore } from '@/components/store';
 import { Ticket } from '@/components/ticket';
 import { ReceiptControl } from '@/components/receipt-control';
@@ -17,10 +22,11 @@ import { WeatherStrip } from '@/components/weather-strip';
 import { Meter, Modal, StoryBars, cap, flash } from '@/components/ui';
 import { ars } from '@/lib/money';
 import { reinsert } from '@/lib/undo';
-import { conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal, overCollected } from '@/lib/domain';
+import { partyTypeOf, conceptPaid, expenseIsPaid, collected, collectionPending, concepts, estimatedProfit, expectedIncome, expenseTotal, feeTotal, overCollected } from '@/lib/domain';
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
-  const {id}=use(params); const {db,ready,update,undoable,saveState}=useStore(); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
+  const {id}=use(params); const {db,ready,update,undoable,saveState}=useStore(); const {templates}=useContentTemplates();
+  const [origin,setOrigin]=useState('');useEffect(()=>setOrigin(window.location.origin),[]); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
   // Los pasos ya resueltos quedan cerrados; se abren con un toque.
   const [toggled,setToggled]=useState<Record<string,boolean>>({});
   const c=db.coverages.find(x=>x.id===id);
@@ -51,6 +57,17 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     after:c.deliveryStatus==='entregada',
   };
   const cancelled=c.eventStatus==='cancelado';
+  const starting=c.checklist.length?[]:startingChecklist(templates,c.partyType,newId);
+  // WhatsApp a la CM con la fecha armada: lo que haya cargado de la fiesta, el equipo y el link a la app.
+  const salonOf=db.salons.find(s=>s.id===c.salonId);
+  const inviteFor=(assignmentId:string)=>{
+    const a=c.assignments.find(x=>x.id===assignmentId)!;const cm=db.cms.find(x=>x.id===a.cmId);if(!cm)return '';
+    const address=c.address||salonOf?.address||'';const sameAsSalon=!c.address||c.address===salonOf?.address;
+    return waLink(cm.phone,partyInvite({cmName:cm.name,name:c.name,partyType:partyTypeOf(c.partyType),startsAt:c.startsAt,endsAt:c.endsAt||undefined,arriveAt:c.arriveAt||undefined,
+      salon:salonOf?.name,address,mapsUrl:address?mapsSearchUrl(address,sameAsSalon&&salonOf?.lat!=null&&salonOf?.lng!=null?{lat:salonOf.lat,lng:salonOf.lng}:null):undefined,
+      feeCents:a.feeCents,livePosting:c.livePosting,content:c.checklist.map(x=>x.text),dafneGoes:c.dafneGoes,
+      mates:c.assignments.filter(x=>x.id!==a.id&&x.confirmation!=='rechazada').map(x=>db.cms.find(m=>m.id===x.cmId)?.name??'').filter(Boolean),appUrl:origin,confirmed:a.confirmation==='confirmada'}));
+  };
   const k=stageCounts(c.checklist);
   const settled={before:steps.before,night:steps.night&&k.drive===k.total&&c.expenses.every(e=>expenseIsPaid(db,e)),after:steps.after};
   type Step=keyof typeof settled;
@@ -78,7 +95,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
             {c.dafneGoes&&<p className="text-sm font-semibold">Vas vos{c.assignments.length?', con:':'.'}</p>}{!c.assignments.length?(!c.dafneGoes&&<p className="muted text-sm">Todavía no hay CM asignadas.</p>):<ul className="crew-list">{c.assignments.map(a=>{const cm=db.cms.find(x=>x.id===a.cmId);return <li key={a.id} className="crew-row">
               <span className="ledger-avatar" aria-hidden="true">{(cm?.name||'?').split(' ').map(n=>n[0]).slice(0,2).join('')}</span>
               <span className="min-w-0 flex-1"><span className="block font-bold">{cm?.name||'CM eliminada'}</span><span className="muted text-sm">Honorario {ars(a.feeCents)}</span></span>
-              <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}{pendingConcepts.some(x=>x.cmId===a.cmId&&x.pendingCents>0)&&<Link className="btn btn-secondary btn-small" href={`/pagos?pagar=${a.cmId}`}>Pagar</Link>}</span>
+              <span className="crew-actions"><span className={`badge ${a.confirmation==='pendiente'?'badge-warn':a.confirmation==='rechazada'?'badge-danger':'badge-success'}`}>{cap(a.confirmation)}</span>{!cancelled&&cm&&<a className="btn btn-whatsapp btn-small" href={inviteFor(a.id)} target="_blank" rel="noopener noreferrer"><MessageCircle size={15}/>{a.confirmation==='pendiente'?'Mandarle la fecha':'WhatsApp'}</a>}{a.confirmation!=='confirmada'&&<button className="btn btn-primary btn-small" disabled={cancelled} onClick={()=>confirmCm(a.id)}>Confirmar</button>}{pendingConcepts.some(x=>x.cmId===a.cmId&&x.pendingCents>0)&&<Link className="btn btn-secondary btn-small" href={`/pagos?pagar=${a.cmId}`}>Pagar</Link>}</span>
             </li>})}</ul>}
           </div>}
         </li>
@@ -86,7 +103,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
           {head('night','La noche',[c.eventStatus==='realizado'?'Fiesta realizada':c.eventStatus==='cancelado'?'Cancelada':'',c.checklist.length?stageSummary(c.checklist):c.eventStatus==='pendiente'?'Sin lista de contenido':''].filter(Boolean).join('. '))}
           {isOpen('night')&&<div className="step-body">
             <div className="sub-head"><h3>Contenido a cubrir</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('content')}><Pencil size={15}/> Editar lista</button></div>
-            {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><StageButton stage={stageOf(x)} text={x.text} onChange={s=>setStage(x.id,s)}/></li>)}</ul><p className="muted mt-2 text-xs">Tocá para marcar: ✓ enviado por WhatsApp · ✓✓ subido al Drive.</p></>:<p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>}
+            {c.checklist.length?<><StoryBars items={c.checklist} label={false}/><ul className="mt-3 space-y-2">{c.checklist.map(x=><li key={x.id}><StageButton stage={stageOf(x)} text={x.text} onChange={s=>setStage(x.id,s)}/></li>)}</ul><p className="muted mt-2 text-xs">Tocá para marcar: ✓ enviado por WhatsApp · ✓✓ subido al Drive.</p></>:<div className="grid gap-2 justify-items-start"><p className="muted text-sm">Agregá lo que hay que cubrir: entrada, vals, torta, carioca.</p>{starting.length>0&&<button type="button" className="btn btn-secondary btn-small" onClick={()=>update(db=>({...db,coverages:db.coverages.map(row=>row.id===id?{...row,checklist:startingChecklist(templates,row.partyType,newId)}:row)}))}>Usar la lista de {templateFor(templates??{},partyTypeOf(c.partyType)).type==='General'?'otras fiestas':partyTypeOf(c.partyType)}</button>}<Link className="text-link" href="/coberturas/plantillas">Listas de contenido</Link></div>}
             <div className="sub-head mt-6"><h3>Cronograma</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('schedule')}><Pencil size={15}/> {c.schedule.length?'Editar':'Armar'} cronograma</button></div>
             {c.schedule.length?<ol className="schedule-list">{[...c.schedule].sort((a,b)=>a.at.localeCompare(b.at)).map(m=><li key={m.id}><time>{m.at.slice(11,16)}</time><span className="min-w-0 flex-1">{m.label}</span>{m.notify&&<span className="schedule-bell" title="Las CM reciben un aviso 10 minutos antes"><Bell size={14} aria-hidden="true"/><span className="sr-only">Con aviso</span></span>}</li>)}</ol>:<p className="muted text-sm">Los momentos de la noche con su hora: entrada, vals, torta. Las CM los ven en su fecha.</p>}
             <div className="sub-head mt-6"><h3>Traslados y gastos</h3><button className="btn btn-quiet btn-small" onClick={()=>setEditing('expenses')}><Pencil size={15}/> Editar</button></div>

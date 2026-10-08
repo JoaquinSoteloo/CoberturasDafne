@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, List, ListChecks } from 'lucide-react';
 import { QuickCoverageForm } from '@/components/quick-coverage-form';
 import { CalendarSubscribe } from '@/components/calendar-subscribe';
 import { useStore } from '@/components/store';
@@ -38,7 +38,7 @@ export default function Coverages() {
       :<div className="grid gap-3 lg:grid-cols-2">{visibleRows.map(c=><Link key={c.id} href={`/coberturas/${c.id}`} className={`card coverage-card status-${c.eventStatus}`}><span className="coverage-date"><strong>{Number(c.startsAt.slice(8,10))}</strong><span>{new Intl.DateTimeFormat('es-AR',{month:'short'}).format(new Date(c.startsAt.slice(0,10)+'T12:00')).replace('.','')}</span><time>{c.startsAt.slice(11,16)}</time></span><span className="coverage-body"><span className="block text-lg font-extrabold">{c.name}</span><span className="muted block text-sm">{[c.partyType,db.salons.find(s=>s.id===c.salonId)?.name].filter(Boolean).join(' · ')}</span><StoryBars items={c.checklist} label={false}/><span className="mt-3 flex flex-wrap items-center gap-2"><span className={`badge ${c.eventStatus==='cancelado'?'badge-danger':c.eventStatus==='pendiente'?'badge-warn':'badge-success'}`}>{cap(c.eventStatus)}</span><span className="badge">{c.assignments.length?`${c.assignments.length} CM`:'Sin CM'}</span>{collectionPending(db,c)>0&&<span className="muted ml-auto text-sm">Falta cobrar {ars(collectionPending(db,c))}</span>}</span></span></Link>)}</div>}
     {view==='calendario'&&ready&&(()=>{const next=rows.find(c=>c.eventStatus==='pendiente'&&c.startsAt.slice(0,10)>selected);if(!next||visibleRows.length)return null;const d=new Date(next.startsAt.slice(0,10)+'T12:00');return <Link href={`/coberturas/${next.id}`} className="next-party"><span className="muted text-sm">La próxima</span><span className="font-bold">{next.name}</span><span className="muted text-sm first-letter:uppercase">{new Intl.DateTimeFormat('es-AR',{weekday:'long',day:'numeric',month:'long'}).format(d)} · {next.startsAt.slice(11,16)} hs</span></Link>})()}
     </section>
-    <div className="max-w-xl"><CalendarSubscribe who="coordinadora"/></div>
+    <div className="grid max-w-xl gap-2"><Link href="/coberturas/plantillas" className="calendar-subscribe-link"><ListChecks size={20} aria-hidden="true"/> Listas de contenido por tipo de fiesta</Link><CalendarSubscribe who="coordinadora"/></div>
     {open&&<Modal title="Nueva cobertura" onClose={()=>setOpen(false)}><QuickCoverageForm defaultDate={selected} onDone={()=>setOpen(false)}/></Modal>}
   </div>;
 }
