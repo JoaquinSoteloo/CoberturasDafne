@@ -46,3 +46,12 @@ test('si ya confirmó, el mensaje es un recordatorio', () => {
   assert.ok(m.endsWith('Todo está en la app 🙌 https://app'));
   assert.ok(!m.includes('¿Podés?'));
 });
+
+test('mensaje con el acceso de la CM', async () => {
+  const { accessMessage } = await import('../src/lib/whatsapp.ts');
+  const m = accessMessage({ cmName: 'Isis Gómez', appUrl: 'https://app', email: 'isis@x.com', password: 'abcd-efgh-jkmn' });
+  assert.match(m, /^¡Hola Isis! 👋/);
+  assert.ok(m.includes('https://app\n'));
+  assert.ok(m.includes('🔑 Contraseña provisoria: abcd-efgh-jkmn'));
+  assert.ok(m.includes('te va a pedir que elijas tu contraseña'));
+});

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, MessageCircle } from 'lucide-react';
+import { accessMessage, waLink } from '@/lib/whatsapp';
 import { useStore } from './store';
 import type { Cm } from '@/lib/types';
 
@@ -28,20 +29,18 @@ export function CmAccess({ cm, onEdit }: { cm: Cm; onEdit: () => void }) {
     } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo crear el acceso.'); }
     finally { setBusy(false); }
   };
-  const copy = async () => {
-    if (!result) return;
-    await navigator.clipboard.writeText(`Entrá a ${window.location.origin} con tu email ${result.email} y la contraseña ${result.password}`);
-    setCopied(true);
-  };
+  const message = result ? accessMessage({ cmName: cm.name, appUrl: window.location.origin, email: result.email, password: result.password }) : '';
+  const copy = async () => { await navigator.clipboard.writeText(message); setCopied(true); };
 
   if (result) return <div className="space-y-4">
-    <p>{result.created ? `Listo, ${first} ya tiene acceso.` : `Le generamos una contraseña nueva a ${first}. La anterior ya no funciona.`} Pasale estos datos por WhatsApp:</p>
+    <p>{result.created ? `Listo, ${first} ya tiene acceso.` : `Le generamos una contraseña nueva a ${first}. La anterior ya no funciona.`} Mandale estos datos:</p>
     <dl className="access-card">
       <div><dt>Email</dt><dd>{result.email}</dd></div>
       <div><dt>Contraseña</dt><dd className="access-password">{result.password}</dd></div>
     </dl>
-    <button className="btn btn-primary w-full" onClick={() => void copy()}>{copied ? <><Check size={18}/> Copiado</> : <><Copy size={18}/> Copiar mensaje</>}</button>
-    <p className="muted text-sm">La contraseña no se vuelve a mostrar. Si la pierde, generá otra desde acá. Una vez adentro, la puede cambiar.</p>
+    <a className="btn btn-whatsapp w-full" href={waLink(cm.phone, message)} target="_blank" rel="noopener noreferrer"><MessageCircle size={18}/> Mandárselo por WhatsApp</a>
+    <button className="btn btn-secondary w-full" onClick={() => void copy()}>{copied ? <><Check size={18}/> Copiado</> : <><Copy size={18}/> Copiar mensaje</>}</button>
+    <p className="muted text-sm">Es una contraseña provisoria: la primera vez que entre, la app le pide que elija la suya. No se vuelve a mostrar; si la pierde, generá otra desde acá.</p>
   </div>;
 
   return <div className="space-y-4">
@@ -49,6 +48,6 @@ export function CmAccess({ cm, onEdit }: { cm: Cm; onEdit: () => void }) {
     <p className="muted text-sm">Si ya tenía acceso, se le genera una contraseña nueva y la anterior deja de funcionar.</p>
     {error && <p role="alert" className="field-error">{error}</p>}
     {saveState !== 'saved' && <p className="muted text-sm">Esperá a que se guarden los cambios.</p>}
-    <button className="btn btn-primary w-full" disabled={busy || saveState !== 'saved'} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar contraseña'}</button>
+    <button className="btn btn-primary w-full" disabled={busy || saveState !== 'saved'} onClick={() => void generate()}>{busy ? 'Generando…' : 'Generar contraseña provisoria'}</button>
   </div>;
 }

@@ -54,3 +54,17 @@ export function partyInvite(i: Invite): string {
 
 /** Link que abre WhatsApp con el mensaje escrito (al chat de la CM si el número se entiende). */
 export const waLink = (phone: string, text: string) => `https://wa.me/${waPhone(phone) ?? ''}?text=${encodeURIComponent(text)}`;
+
+/** El mensaje con el acceso de una CM: el link, su email y la contraseña provisoria. */
+export function accessMessage({ cmName, appUrl, email, password }: { cmName: string; appUrl: string; email: string; password: string }): string {
+  return [
+    `¡Hola ${cmName.split(' ')[0]}! 👋 Ya tenés acceso a la app de BS Marketing, donde vas a ver tus fechas y tus pagos:`,
+    appUrl,
+    '',
+    `📧 Email: ${email}`,
+    `🔑 Contraseña provisoria: ${password}`,
+    '',
+    'La primera vez que entres te va a pedir que elijas tu contraseña.',
+    '📲 Tip: abrila en Safari y tocá Compartir → "Agregar a inicio" para tenerla como app.',
+  ].join('\n');
+}

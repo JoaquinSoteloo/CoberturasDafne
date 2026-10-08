@@ -1,5 +1,5 @@
 'use client';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Eye, KeyRound, Pencil, Phone, Receipt } from 'lucide-react';
 import { useStore } from '@/components/store';
@@ -22,6 +22,8 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
   const pushStatus = useCmPushStatus();
   const [editing, setEditing] = useState(false);
   const [access, setAccess] = useState(false);
+  // Recién dada de alta con email: se abre "Acceso" para mandarle la contraseña provisoria.
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('acceso')) { setAccess(true); window.history.replaceState(null, '', window.location.pathname); } }, []);
   const cm = db.cms.find(x => x.id === id);
   if (!ready) return <p className="muted">Cargando…</p>;
   if (!cm) return <div className="space-y-4"><Link href="/equipo" className="back-link"><ArrowLeft size={17}/> Equipo</Link><p className="font-bold">No encontramos a esa CM.</p></div>;

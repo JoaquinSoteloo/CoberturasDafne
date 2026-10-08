@@ -39,9 +39,11 @@ export async function POST(request: Request) {
   }
 
   const password = temporaryPassword();
+  // La contraseña es provisoria: la primera vez que entre, la app le pide que elija la suya.
+  const user_metadata = { must_change_password: true };
   const { error } = existing
-    ? await admin.auth.admin.updateUserById(existing, { password })
-    : await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    ? await admin.auth.admin.updateUserById(existing, { password, user_metadata })
+    : await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata });
   if (error) return fail('No se pudo crear el acceso. Probá de nuevo en un rato.', 502);
 
   return NextResponse.json({ email, password, created: !existing });
