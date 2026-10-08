@@ -131,3 +131,10 @@ test('si va Dafne: el cronograma y el "¿Tomaste Uber?" la llevan a la cobertura
   assert.equal(uber.url, '/coberturas/cov-1');
   assert.match(uber.body, /cargalo desde la cobertura/);
 });
+
+test('aviso a Dafne cuando una CM sube todo el contenido', () => {
+  const m = buildMessage({ kind: 'uploaded', for_coordinator: true, data: { coverage_id: 'c1', coverage_name: 'XV Luci', cm_name: 'Isis Gómez' } });
+  assert.equal(m.title, 'Isis subió todo el contenido');
+  assert.equal(m.body, 'XV Luci: está todo en el Drive.');
+  assert.equal(m.url, '/coberturas/c1');
+});
