@@ -5,7 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, CircleCheck, Fi
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { openReceipt } from '@/lib/receipts';
-import { active, collected, collectionPending, concepts, expectedIncome, isDue, paymentTotal, type Concept } from '@/lib/domain';
+import { active, collected, collectionPending, concepts, expectedIncome, isDue, isOwed, paymentTotal, type Concept } from '@/lib/domain';
 import { dayKey } from '@/lib/calendar';
 import { ars, dateLabel } from '@/lib/money';
 import type { Coverage, Db } from '@/lib/types';
@@ -55,7 +55,7 @@ export function PayOverview({ db, initial, onManualCollect, onManualPay, onEdit 
   const dueCov = owing.filter(c => isDue(c, today)).sort(byDate);
   const laterCov = owing.filter(c => !isDue(c, today)).sort(byDate);
   const pending = concepts(db).filter(x => x.pendingCents > 0);
-  const dueItems = pending.filter(x => { const c = cov(x.coverageId); return c && isDue(c, today); });
+  const dueItems = pending.filter(x => isOwed(db, x, today));
   const laterTeam = sum(pending.filter(x => !dueItems.includes(x)), x => x.pendingCents);
   const crew = [...new Set(dueItems.map(x => x.cmId))].map(cmId => {
     const items = dueItems.filter(x => x.cmId === cmId);
@@ -136,7 +136,7 @@ function PaySheet({ db, cmId, today, onClose, onManual }: { db: Db; cmId: string
   const cov = (id: string) => db.coverages.find(c => c.id === id);
   const items = concepts(db).filter(x => x.cmId === cmId && x.pendingCents > 0)
     .sort((a, b) => (cov(a.coverageId)?.startsAt ?? '').localeCompare(cov(b.coverageId)?.startsAt ?? '') || (a.id.startsWith('fee:') ? -1 : 1));
-  const due = (x: Concept) => { const c = cov(x.coverageId); return !!c && isDue(c, today); };
+  const due = (x: Concept) => isOwed(db, x, today);
   const [selected, setSelected] = useState<string[]>(() => items.filter(due).map(x => x.id));
   const total = sum(items.filter(x => selected.includes(x.id)), x => x.pendingCents);
   const first = cm?.name.split(' ')[0] ?? 'la CM';
@@ -145,7 +145,7 @@ function PaySheet({ db, cmId, today, onClose, onManual }: { db: Db; cmId: string
     <div className="flex items-center gap-3"><Avatar name={cm?.name ?? '?'} photoPath={cm?.photoPath} size={44}/><div className="min-w-0"><p className="truncate font-bold">{cm?.name}</p><p className="muted truncate text-sm">{cm?.alias ? `Alias ${cm.alias}` : 'Sin alias cargado'}</p></div></div>
     {items.length ? <ul className="pay-pick">{items.map(x => { const c = cov(x.coverageId); return <li key={x.id}><label>
       <input type="checkbox" checked={selected.includes(x.id)} onChange={() => toggle(x.id)}/>
-      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c?.name}</span><span className="muted block text-sm">{conceptName(x)}{c && !due(x) ? ' · fiesta que viene' : ''}</span></span>
+      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c?.name}</span><span className="muted block text-sm">{conceptName(x)}{c && !due(x) ? (isDue(c, today) ? ' · no confirmó' : ' · fiesta que viene') : ''}</span></span>
       <span className="pay-amount">{ars(x.pendingCents)}</span>
     </label></li>; })}<li className="pay-pick-total"><span>Total</span><strong>{ars(total)}</strong></li></ul> : <p className="pay-clear"><CircleCheck size={18}/> No se le debe nada.</p>}
     {total > 0 && <>

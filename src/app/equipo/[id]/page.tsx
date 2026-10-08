@@ -9,8 +9,9 @@ import { CmForm } from '@/components/cm-form';
 import { MpTransfer } from '@/components/mp-transfer';
 import { CmPushBadge, useCmPushStatus } from '@/components/cm-push-status';
 import { Meter, Modal, shortDay } from '@/components/ui';
-import { cmCoverageHistory, concepts } from '@/lib/domain';
+import { cmCoverageHistory, concepts, isOwed } from '@/lib/domain';
 import { ars } from '@/lib/money';
+import { dayKey } from '@/lib/calendar';
 
 /**
  * Ficha de una CM: sus datos, lo que se le debe (coberturas y Ubers), próximas fechas e historial.
@@ -30,10 +31,14 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
 
   const first = cm.name.split(' ')[0];
   const mine = concepts(db).filter(c => c.cmId === cm.id);
-  const owedFees = mine.filter(c => c.id.startsWith('fee:')).reduce((s, c) => s + c.pendingCents, 0);
-  const owedUbers = mine.filter(c => c.id.startsWith('expense:')).reduce((s, c) => s + c.pendingCents, 0);
+  // Se le debe lo de fiestas que ya pasaron y confirmó; lo demás todavía no es deuda.
+  const today = dayKey(new Date());
+  const due = mine.filter(c => isOwed(db, c, today));
+  const owedFees = due.filter(c => c.id.startsWith('fee:')).reduce((s, c) => s + c.pendingCents, 0);
+  const owedUbers = due.filter(c => c.id.startsWith('expense:')).reduce((s, c) => s + c.pendingCents, 0);
+  const later = mine.filter(c => !isOwed(db, c, today)).reduce((s, c) => s + c.pendingCents, 0);
   const owed = owedFees + owedUbers;
-  const total = mine.reduce((s, c) => s + c.amountCents, 0), paid = mine.reduce((s, c) => s + Math.min(c.paidCents, c.amountCents), 0);
+  const total = due.reduce((s, c) => s + c.amountCents, 0), paid = due.reduce((s, c) => s + Math.min(c.paidCents, c.amountCents), 0);
   const history = cmCoverageHistory(db, cm.id);
   const now = new Date();
   const upcoming = history.filter(h => h.coverage.eventStatus === 'pendiente' && new Date(h.coverage.startsAt) >= now).sort((a, b) => a.coverage.startsAt.localeCompare(b.coverage.startsAt));
@@ -60,7 +65,7 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
 
     <section className="card pay-summary" aria-label="Lo que se le debe">
       <div className="pay-summary-grid">
-        <div><p className="pay-summary-label">{owed > 0 ? 'Le debés' : 'Está al día'}</p><p className={`pay-summary-value ${owed > 0 ? 'is-owed' : ''}`}>{ars(owed)}</p>{owed > 0 && <p className="muted text-sm">Coberturas {ars(owedFees)} · Ubers {ars(owedUbers)}</p>}</div>
+        <div><p className="pay-summary-label">{owed > 0 ? 'Le debés' : 'Está al día'}</p><p className={`pay-summary-value ${owed > 0 ? 'is-owed' : ''}`}>{ars(owed)}</p>{owed > 0 && <p className="muted text-sm">Coberturas {ars(owedFees)} · Ubers {ars(owedUbers)}</p>}{later > 0 && <p className="muted text-sm">Más adelante: {ars(later)} de fiestas que vienen o sin confirmar</p>}</div>
         <div><p className="pay-summary-label">Pagado en total</p><p className="pay-summary-value">{ars(paid)}</p><p className="muted text-sm">de {ars(total)}</p></div>
       </div>
       {total > 0 && <Meter done={paid} total={total} label={`Pagado ${ars(paid)} de ${ars(total)}`}/>}
@@ -74,7 +79,7 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
     </section>
 
     <section aria-labelledby="history-title"><h2 id="history-title" className="section-title mb-3">Historial · {history.length} {history.length === 1 ? 'cobertura' : 'coberturas'}</h2>
-      {history.length ? <ul className="ledger card">{history.map(({ coverage: c, totalCents, paidCents, pendingCents, hasReimbursements }) => { const d = shortDay(c.startsAt); return <li key={c.id}><Link href={`/coberturas/${c.id}`} className="ledger-row"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">{c.name}</span><span className="muted block text-sm">{c.eventStatus === 'cancelado' ? 'Cancelada, no suma al total' : `Pagado ${ars(paidCents)} de ${ars(totalCents)}${hasReimbursements ? ', con Ubers' : ''}`}</span></span><span className="ledger-amount">{pendingCents > 0 ? ars(pendingCents) : 'Saldada'}</span></Link></li>; })}</ul>
+      {history.length ? <ul className="ledger card">{history.map(({ coverage: c, totalCents, paidCents, pendingCents, hasReimbursements }) => { const d = shortDay(c.startsAt); return <li key={c.id}><Link href={`/coberturas/${c.id}`} className="ledger-row"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">{c.name}</span><span className="muted block text-sm">{c.eventStatus === 'cancelado' ? 'Cancelada, no suma al total' : `Pagado ${ars(paidCents)} de ${ars(totalCents)}${hasReimbursements ? ', con Ubers' : ''}`}</span></span><span className="ledger-amount">{c.startsAt.slice(0, 10) > today ? 'Por venir' : pendingCents > 0 ? ars(pendingCents) : 'Saldada'}</span></Link></li>; })}</ul>
         : <p className="muted text-sm">Todavía no participó en coberturas.</p>}
     </section>
 

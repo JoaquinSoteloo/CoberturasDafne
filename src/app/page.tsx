@@ -48,6 +48,7 @@ export default function Home() {
       return { c, text: k.total && k.drive < k.total ? `Faltan ${k.total - k.drive} en el Drive${k.whatsapp > k.drive ? ` (${k.whatsapp - k.drive} ya por WhatsApp)` : ''}` : 'Falta entregar el contenido' };
     }),
     ...past.map(c => ({ c, owed: collectionPending(db, c) })).filter(x => x.owed > 0).map(({ c, owed }) => ({ c, text: `${salon(c.salonId) ?? 'El salón'} debe ${ars(owed)}` })),
+    ...past.filter(c => c.assignments.some(a => a.confirmation === 'pendiente')).map(c => ({ c, text: `${c.assignments.filter(a => a.confirmation === 'pendiente').map(a => db.cms.find(m => m.id === a.cmId)?.name.split(' ')[0] ?? 'Una CM').join(' y ')} no confirmó: confirmala o sacala del equipo` })),
     ...upcoming.filter(c => (!c.assignments.length && !c.dafneGoes) || c.assignments.some(a => a.confirmation !== 'confirmada')).map(c => ({ c, text: !c.assignments.length ? 'Sin CM asignada' : `${c.assignments.filter(a => a.confirmation !== 'confirmada').length} CM por confirmar` })),
   ];
   // Una tarjeta por fiesta, con todo lo que le falta.

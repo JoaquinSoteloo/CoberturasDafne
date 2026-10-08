@@ -108,3 +108,19 @@ test('tipos de fiesta: lo escrito a mano se agrupa y se suman los números por t
   assert.equal(stats.find(s => s.type === '15 años').count, 2);
   assert.equal(stats.reduce((n, s) => n + s.count, 0), db.coverages.length);
 });
+
+test('lo que se le debe a una CM: solo fiestas que ya pasaron, y nunca si rechazó', async () => {
+  const { cmPending, feeTotal } = await import('../src/lib/domain.ts');
+  const base = { partyType: '', client: '', salonId: 's', address: '', endsAt: '', arriveAt: '', livePosting: false, dafneGoes: false, notes: '', agreedCents: 0, expenses: [], checklist: [], schedule: [], driveUrl: '', deliveredPieces: 0, deliveryNotes: '', eventStatus: 'pendiente', deliveryStatus: 'pendiente' };
+  const db = { version: 1, salons: [], cms: [{ id: 'isis', name: 'Isis', phone: '', email: '', notes: '' }], collections: [], cmPayments: [], coverages: [
+    { ...base, id: 'pasada', name: 'Pasada', startsAt: '2026-10-01T21:00', assignments: [{ id: 'a1', cmId: 'isis', feeCents: 3000000, confirmation: 'confirmada' }] },
+    { ...base, id: 'viene', name: 'Viene', startsAt: '2026-10-20T21:00', assignments: [{ id: 'a2', cmId: 'isis', feeCents: 20000000, confirmation: 'pendiente' }] },
+    { ...base, id: 'rechazo', name: 'Rechazó', startsAt: '2026-10-02T21:00', assignments: [{ id: 'a3', cmId: 'isis', feeCents: 5000000, confirmation: 'rechazada' }] },
+  ] };
+  assert.equal(cmPending(db, 'isis', '2026-10-07'), 3000000);
+  assert.equal(cmPending(db, 'isis'), 23000000, 'sin fecha: todo lo asignado, menos lo rechazado');
+  assert.equal(feeTotal(db.coverages[2]), 0);
+  // Ya pasó pero nunca confirmó: todavía no es deuda (Dafne decide desde "A resolver").
+  db.coverages[0].assignments[0].confirmation = 'pendiente';
+  assert.equal(cmPending(db, 'isis', '2026-10-07'), 0);
+});

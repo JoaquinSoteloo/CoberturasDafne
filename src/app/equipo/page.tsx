@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui';
 import { newId } from '@/lib/repository';
 import { ars } from '@/lib/money';
 import { cmPending, cmCoverageHistory } from '@/lib/domain';
+import { dayKey } from '@/lib/calendar';
 import type { Salon } from '@/lib/types';
 
 export default function Team(){
@@ -21,7 +22,7 @@ export default function Team(){
   const pushStatus=useCmPushStatus();
   const [salon,setSalon]=useState<Salon|null>(null);
   const saveSalon=(e:React.FormEvent)=>{e.preventDefault();if(!salon)return;if(!salon.name.trim()){setError('Ingresá el nombre del salón.');return}const clean={...salon,name:salon.name.trim(),address:salon.address.trim()};update(db=>({...db,salons:db.salons.some(x=>x.id===clean.id)?db.salons.map(x=>x.id===clean.id?clean:x):[...db.salons,clean]}));setSalon(null);setError('')};
-  return <div className="space-y-7"><div className="page-heading"><h1 className="page-title">Equipo</h1><button className="btn btn-secondary btn-small" onClick={()=>setAdding(true)}><Plus size={16}/> Agregar CM</button></div><div className="team-grid">{db.cms.map(cm=>{const owed=cmPending(db,cm.id);const upcoming=cmCoverageHistory(db,cm.id).filter(h=>h.coverage.eventStatus==='pendiente'&&new Date(h.coverage.startsAt)>=new Date()).length;const push=pushStatus[cm.id];const pushText=!push?'':!push.has_account?'Sin cuenta':push.devices?'Avisos activados':'Sin avisos';
+  return <div className="space-y-7"><div className="page-heading"><h1 className="page-title">Equipo</h1><button className="btn btn-secondary btn-small" onClick={()=>setAdding(true)}><Plus size={16}/> Agregar CM</button></div><div className="team-grid">{db.cms.map(cm=>{const owed=cmPending(db,cm.id,dayKey(new Date()));const upcoming=cmCoverageHistory(db,cm.id).filter(h=>h.coverage.eventStatus==='pendiente'&&new Date(h.coverage.startsAt)>=new Date()).length;const push=pushStatus[cm.id];const pushText=!push?'':!push.has_account?'Sin cuenta':push.devices?'Avisos activados':'Sin avisos';
       return <Link key={cm.id} href={`/equipo/${cm.id}`} className="card team-tile">
         <Avatar name={cm.name} photoPath={cm.photoPath} size={64}/>
         <span className="block font-extrabold leading-tight line-clamp-2">{cm.name}</span>

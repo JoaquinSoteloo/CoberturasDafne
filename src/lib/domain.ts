@@ -4,7 +4,9 @@ export type Concept = { id: string; cmId: string; coverageId: string; label: str
 export const active = (c: Coverage) => c.eventStatus !== 'cancelado';
 export const expenseTotal = (c: Coverage) => c.expenses.reduce((sum, e) => sum + e.amountCents, 0);
 export const additionalTotal = (c: Coverage) => c.expenses.filter(e => e.absorbedBy === 'salon').reduce((sum, e) => sum + e.amountCents, 0);
-export const feeTotal = (c: Coverage) => c.assignments.reduce((sum, a) => sum + a.feeCents, 0);
+/** Las CM que dijeron que no pueden no cobran: su honorario no cuenta. */
+const working = (c: Coverage) => c.assignments.filter(a => a.confirmation !== 'rechazada');
+export const feeTotal = (c: Coverage) => working(c).reduce((sum, a) => sum + a.feeCents, 0);
 export const expectedIncome = (c: Coverage) => active(c) ? c.agreedCents + additionalTotal(c) : 0;
 export const expectedCosts = (c: Coverage) => active(c) ? feeTotal(c) + expenseTotal(c) : 0;
 export const estimatedProfit = (c: Coverage) => expectedIncome(c) - expectedCosts(c);
@@ -18,14 +20,25 @@ export const expenseIsPaid = (db: Db, e: Expense): boolean => e.advancedBy === '
   ? conceptPaid(db,`expense:${e.id}`) >= e.amountCents
   : e.paymentStatus ? e.paymentStatus === 'pagado' : e.advancedBy === 'coordinadora';
 export const concepts = (db: Db): Concept[] => db.coverages.filter(active).flatMap(c => [
-  ...c.assignments.map(a => ({ id: `fee:${a.id}`, cmId: a.cmId, coverageId: c.id, label: `Honorarios · ${c.name}`, amountCents: a.feeCents })),
+  ...working(c).map(a => ({ id: `fee:${a.id}`, cmId: a.cmId, coverageId: c.id, label: `Honorarios · ${c.name}`, amountCents: a.feeCents })),
   ...c.expenses.filter(e => e.advancedBy === 'cm' && e.advancedCmId).map(e => ({ id: `expense:${e.id}`, cmId: e.advancedCmId!, coverageId: c.id, label: `Reintegro ${e.label} · ${c.name}`, amountCents: e.amountCents }))
 ].map(item => { const paidCents = conceptPaid(db, item.id); return { ...item, paidCents, pendingCents: Math.max(0, item.amountCents - paidCents) }; }));
-export const cmPending = (db: Db, cmId: string) => concepts(db).filter(c => c.cmId === cmId).reduce((sum, c) => sum + c.pendingCents, 0);
+/** Lo que se le debe a una CM. Con `today`, solo lo que ya es deuda (ver isOwed). */
+export const cmPending = (db: Db, cmId: string, today?: string) =>
+  concepts(db).filter(c => c.cmId === cmId && (!today || isOwed(db, c, today))).reduce((sum, c) => sum + c.pendingCents, 0);
 /** La fiesta ya pasó (o es hoy): lo que falta cobrar o pagar de ella ya es deuda. */
 export const isDue = (c: Coverage, today: string) => c.startsAt.slice(0, 10) <= today;
 export const dueCollections = (db: Db, today: string) => db.coverages.filter(c => isDue(c, today)).reduce((sum, c) => sum + collectionPending(db, c), 0);
-export const duePayments = (db: Db, today: string) => { const due = new Set(db.coverages.filter(c => isDue(c, today)).map(c => c.id)); return concepts(db).filter(c => due.has(c.coverageId)).reduce((sum, c) => sum + c.pendingCents, 0); };
+/**
+ * ¿Ya se le debe? La cobertura, si la fiesta pasó y la CM confirmó (si no confirmó, Dafne decide
+ * desde "A resolver" si fue). Un Uber que adelantó la CM, si la fiesta pasó.
+ */
+export const isOwed = (db: Db, x: Pick<Concept, 'id' | 'coverageId'>, today: string) => {
+  const c = db.coverages.find(cv => cv.id === x.coverageId);
+  if (!c || !isDue(c, today)) return false;
+  return !x.id.startsWith('fee:') || c.assignments.some(a => `fee:${a.id}` === x.id && a.confirmation === 'confirmada');
+};
+export const duePayments = (db: Db, today: string) => concepts(db).filter(c => isOwed(db, c, today)).reduce((sum, c) => sum + c.pendingCents, 0);
 export const totalPendingCollections = (db: Db) => db.coverages.reduce((sum, c) => sum + collectionPending(db, c), 0);
 export const totalPendingPayments = (db: Db) => concepts(db).reduce((sum, c) => sum + c.pendingCents, 0);
 export const balanceStatus = (total: number, paid: number): 'sin saldo' | 'pendiente' | 'parcial' | 'saldado' => total <= 0 ? 'sin saldo' : paid <= 0 ? 'pendiente' : paid < total ? 'parcial' : 'saldado';
