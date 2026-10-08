@@ -11,7 +11,7 @@ import type { Db } from '@/lib/types';
 export type SaveState = 'saved' | 'saving' | 'error';
 /** Borra algo y deja unos segundos para deshacerlo. Mientras tanto no se guarda nada: si se deshace, la base nunca se enteró. */
 export type Undoable = (message: string, remove: (db: Db) => Db, restore: (db: Db) => Db, onUndo?: () => void) => void;
-type Store = { db: Db; ready: boolean; update: (fn: (db: Db) => Db) => void; undoable: Undoable; saveState: SaveState; email: string; signOut: () => Promise<void> };
+type Store = { db: Db; ready: boolean; update: (fn: (db: Db) => Db) => void; undoable: Undoable; saveState: SaveState; email: string; signOut: () => Promise<void>; /** Foto de perfil de Dafne. */ photoPath: string | null; setPhotoPath: (path: string | null) => void };
 const Context = createContext<Store | null>(null);
 const SAVE_DELAY = 500;
 const RETRY_DELAY = 5000;
@@ -34,6 +34,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [email, setEmail] = useState('');
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const latest = useRef(db);                          // lo que hay en pantalla
   const saved = useRef<Snapshot>(snapshotOf(db));     // lo último que confirmó Supabase
   const savedDb = useRef(db);
@@ -49,6 +50,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.replace('/ingresar'); return; }
     setEmail(user.email ?? '');
+    void supabase.rpc('my_photo').then(({ data }: { data: unknown }) => setPhotoPath(typeof data === 'string' ? data : null));
     const { db: loaded, versions: loadedVersions } = await loadDb(supabase);
     saved.current = snapshotOf(loaded); savedDb.current = loaded; latest.current = loaded; versions.current = loadedVersions; loadedAt.current = Date.now();
     setDb(loaded); setSaveState('saved'); setStatus('ready');
@@ -134,7 +136,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (status === 'error') return <div className="grid min-h-dvh place-items-center p-6 text-center"><div><p className="font-bold">No pudimos cargar tus datos.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet y volvé a intentar.</p><button className="btn btn-primary mt-4" onClick={() => { setStatus('loading'); load().catch(() => setStatus('error')); }}>Reintentar</button></div></div>;
-  return <Context.Provider value={{ db, ready: status === 'ready', update, undoable, saveState, email, signOut }}>{status === 'ready' ? children : <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando tus datos…</div>}</Context.Provider>;
+  return <Context.Provider value={{ db, ready: status === 'ready', update, undoable, saveState, email, signOut, photoPath, setPhotoPath }}>{status === 'ready' ? children : <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando tus datos…</div>}</Context.Provider>;
 }
 
 export const useStore = () => { const store = useContext(Context); if (!store) throw new Error('StoreProvider requerido'); return store; };

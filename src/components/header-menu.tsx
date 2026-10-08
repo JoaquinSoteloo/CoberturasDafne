@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, Smartphone } from 'lucide-react';
+import { Camera, LogOut, Smartphone } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import { PushToggle } from './push-control';
 import { photoUrl } from './avatar';
@@ -11,8 +11,13 @@ import { ShortcutSetup } from './shortcut-setup';
  * En el celular, el círculo de arriba a la derecha (la foto o la inicial) abre un menú con lo que
  * casi no se usa: los avisos, el modo noche, el Atajo de iPhone y salir.
  */
-export function HeaderMenu({ email, name, photoPath, onSignOut, who = 'coordinadora' }: { email: string; name?: string; photoPath?: string | null; onSignOut: () => void; who?: 'coordinadora' | 'cm' }) {
+export function HeaderMenu({ email, name, photoPath, onSignOut, onPhoto, who = 'coordinadora' }: {
+  email: string; name?: string; photoPath?: string | null; onSignOut: () => void; who?: 'coordinadora' | 'cm';
+  /** Cambiar la foto desde el menú (Dafne; las CM la cambian en su Perfil). */
+  onPhoto?: (file: File) => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
   const [shortcut, setShortcut] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -28,7 +33,8 @@ export function HeaderMenu({ email, name, photoPath, onSignOut, who = 'coordinad
       {/* eslint-disable-next-line @next/next/no-img-element -- foto chica ya achicada al subirla */}
       {photo ? <img src={photo} alt="" className="header-avatar-photo"/> : (name || email || 'D')[0].toUpperCase()}
     </button>
-    {open && <div className="header-menu-panel"><p className="header-menu-email">{name ? <><strong className="block text-white">{name}</strong>{email}</> : email || 'Dafne'}</p><PushToggle/><ThemeToggle/><button type="button" className="theme-toggle" onClick={() => { setOpen(false); setShortcut(true); }}><Smartphone size={18}/><span>Atajo de iPhone</span></button><button type="button" className="theme-toggle" onClick={onSignOut}><LogOut size={18}/><span>Salir</span></button></div>}
+    {open && <div className="header-menu-panel"><p className="header-menu-email">{name ? <><strong className="block text-white">{name}</strong>{email}</> : email || 'Dafne'}</p>{onPhoto && <button type="button" className="theme-toggle" onClick={() => photoInput.current?.click()}><Camera size={18}/><span>{photoPath ? 'Cambiar tu foto' : 'Poner tu foto'}</span></button>}<PushToggle/><ThemeToggle/><button type="button" className="theme-toggle" onClick={() => { setOpen(false); setShortcut(true); }}><Smartphone size={18}/><span>Atajo de iPhone</span></button><button type="button" className="theme-toggle" onClick={onSignOut}><LogOut size={18}/><span>Salir</span></button></div>}
+    {onPhoto && <input ref={photoInput} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { setOpen(false); void onPhoto(f); } }}/>}
     {shortcut && <Modal title="Atajo de iPhone" onClose={() => setShortcut(false)}><ShortcutSetup who={who}/></Modal>}
   </div>;
 }
