@@ -14,15 +14,3 @@ export function Avatar({ name, photoPath, size = 44, className = '' }: { name: s
     {url ? <img src={url} alt="" loading="lazy"/> : initials(name)}
   </span>;
 }
-
-/** Recorta la foto al centro en un cuadrado de 512 px y la pasa a JPG (queda en unos 60 KB). */
-export async function squarePhoto(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  const side = Math.min(bitmap.width, bitmap.height);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  canvas.getContext('2d')!.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 512, 512);
-  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-  if (!blob) throw new Error('No se pudo preparar la foto.');
-  return blob;
-}

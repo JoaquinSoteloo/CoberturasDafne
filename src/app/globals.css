@@ -304,6 +304,10 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .shortcut-steps{display:grid;gap:10px;margin:0;padding-left:22px;font-size:15px}
 .shortcut-steps li::marker{font-weight:800}
 .review-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--accent-soft);color:var(--accent-text);font-weight:700;font-size:14px}
+.cropper{position:relative;margin:0 auto;overflow:hidden;border-radius:16px;background:#0d0819;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.cropper:active{cursor:grabbing}
+.cropper img{position:absolute;left:0;top:0;max-width:none;pointer-events:none}
+.cropper-ring{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(13,8,25,.62);outline:2px solid rgba(255,255,255,.9);outline-offset:-2px;pointer-events:none}
 .calendar-subscribe-link{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700;color:var(--ink)}
 .template-types{display:flex;flex-wrap:wrap;gap:8px}
 .template-types button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:700}

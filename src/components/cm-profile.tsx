@@ -3,7 +3,8 @@ import { useRef, useState } from 'react';
 import { Camera, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { Avatar, squarePhoto } from './avatar';
+import { Avatar } from './avatar';
+import { PhotoCropper } from './photo-cropper';
 
 export type Profile = { name: string; email: string; phone: string; alias: string; photo_path: string | null };
 
@@ -18,14 +19,14 @@ export function CmProfile({ profile, preview, onChange, children }: { profile: P
   const input = useRef<HTMLInputElement>(null);
   const changed = phone.trim() !== profile.phone.trim() || alias.trim() !== profile.alias.trim();
 
-  const savePhoto = async (file?: File) => {
-    if (!file) return;
+  const [cropping, setCropping] = useState<File | null>(null);
+  const savePhoto = async (blob: Blob) => {
+    setCropping(null);
     setBusy('foto');
     try {
       const supabase = supabaseBrowser();
       const { data: cmId, error: idError } = await supabase.rpc('my_cm_id');
       if (idError || typeof cmId !== 'string') throw new Error('No se pudo identificar tu cuenta.');
-      const blob = await squarePhoto(file);
       const path = `cm-${cmId}/${crypto.randomUUID()}.jpg`;
       const { error: upError } = await supabase.storage.from('perfiles').upload(path, blob, { contentType: 'image/jpeg' });
       if (upError) throw new Error('No se pudo subir la foto. Probá de nuevo.');
@@ -60,7 +61,8 @@ export function CmProfile({ profile, preview, onChange, children }: { profile: P
     <div className="card profile-card">
       <div className="relative">
         <Avatar name={profile.name} photoPath={profile.photo_path} size={96}/>
-        <input ref={input} type="file" accept="image/*" hidden onChange={e => { void savePhoto(e.target.files?.[0]); e.target.value = ''; }}/>
+        <input ref={input} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setCropping(f); }}/>
+        {cropping && <PhotoCropper file={cropping} onCancel={() => setCropping(null)} onDone={savePhoto}/>}
         <button type="button" className="profile-photo-btn" aria-label="Cambiar foto" disabled={preview || !!busy} onClick={() => input.current?.click()}><Camera size={16}/></button>
       </div>
       <div className="min-w-0 text-center">
