@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useState } from 'react';
+import { use, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { ArrowLeft, Pencil, FolderOpen, Trash2, Bell, ChevronDown, MessageCircle } from 'lucide-react';
@@ -26,7 +26,7 @@ import { partyTypeOf, conceptPaid, expenseIsPaid, collected, collectionPending, 
 
 export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
   const {id}=use(params); const {db,ready,update,undoable,saveState}=useStore(); const {templates}=useContentTemplates();
-  const [origin,setOrigin]=useState('');useEffect(()=>setOrigin(window.location.origin),[]); const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
+  const [editing,setEditing]=useState<'event'|'team'|'expenses'|'content'|'schedule'|null>(null);
   // Los pasos ya resueltos quedan cerrados; se abren con un toque.
   const [toggled,setToggled]=useState<Record<string,boolean>>({});
   const c=db.coverages.find(x=>x.id===id);
@@ -66,7 +66,7 @@ export default function CoverageDetail({params}:{params:Promise<{id:string}>}) {
     return waLink(cm.phone,partyInvite({cmName:cm.name,name:c.name,partyType:partyTypeOf(c.partyType),startsAt:c.startsAt,endsAt:c.endsAt||undefined,arriveAt:c.arriveAt||undefined,
       salon:salonOf?.name,address,mapsUrl:address?mapsSearchUrl(address,sameAsSalon&&salonOf?.lat!=null&&salonOf?.lng!=null?{lat:salonOf.lat,lng:salonOf.lng}:null):undefined,
       feeCents:a.feeCents,livePosting:c.livePosting,content:c.checklist.map(x=>x.text),dafneGoes:c.dafneGoes,
-      mates:c.assignments.filter(x=>x.id!==a.id&&x.confirmation!=='rechazada').map(x=>db.cms.find(m=>m.id===x.cmId)?.name??'').filter(Boolean),appUrl:origin,confirmed:a.confirmation==='confirmada'}));
+      mates:c.assignments.filter(x=>x.id!==a.id&&x.confirmation!=='rechazada').map(x=>db.cms.find(m=>m.id===x.cmId)?.name??'').filter(Boolean),confirmed:a.confirmation==='confirmada'}));
   };
   const k=stageCounts(c.checklist);
   const settled={before:steps.before,night:steps.night&&k.drive===k.total&&c.expenses.every(e=>expenseIsPaid(db,e)),after:steps.after};

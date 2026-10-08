@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { BrandMark } from '@/components/brand';
+import { InstallHint } from '@/components/install-hint';
 
 export default function SignIn() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function SignIn() {
 
   return <main className="signin">
     <div className="signin-brand"><BrandMark size={88}/></div>
+    <div className="signin-hint"><InstallHint/></div>
     {mode === 'ingresar' && <form className="signin-card" onSubmit={submit}>
       <h1 className="signin-title">Ingresar</h1>
       <label className="block"><span className="label">Email</span><input className="field" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>

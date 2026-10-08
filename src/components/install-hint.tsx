@@ -9,6 +9,8 @@ const KEY = 'coberturas-install-hint';
 /**
  * Aviso para instalar la app en el celular. En Android usa el instalador del navegador;
  * en iPhone explica cómo hacerlo, porque Safari no tiene botón. No aparece si ya está instalada.
+ * En iPhone los links (por ejemplo, desde WhatsApp) siempre abren Safari, nunca la app del
+ * inicio: por eso primero recuerda abrirla desde el ícono, donde ya está la sesión.
  */
 export function InstallHint() {
   const [mode, setMode] = useState<'android' | 'ios' | null>(null);
@@ -33,9 +35,9 @@ export function InstallHint() {
   return <aside className="install-hint" aria-label="Instalar la app">
     <Image src="/icons/icon-192.png" alt="" width={44} height={44}/>
     <div className="min-w-0 flex-1">
-      <p className="font-bold">Instalá la app en tu celular</p>
+      <p className="font-bold">{mode === 'ios' ? '¿Ya tenés la app en tu pantalla de inicio?' : 'Instalá la app en tu celular'}</p>
       {mode === 'ios'
-        ? <p className="text-sm">Tocá <Share size={14} className="inline align-[-2px]" aria-label="Compartir"/> y después <b>Agregar a inicio</b>.</p>
+        ? <p className="text-sm">Abrila desde el ícono: ahí ya estás adentro. Si todavía no la agregaste, tocá <Share size={14} className="inline align-[-2px]" aria-label="Compartir"/> y después <b>Agregar a inicio</b>.</p>
         : <button type="button" className="btn btn-primary btn-small mt-2" onClick={() => void install()}><Download size={16}/> Instalar</button>}
     </div>
     <button type="button" className="install-close" onClick={close} aria-label="Cerrar aviso"><X size={18}/></button>
