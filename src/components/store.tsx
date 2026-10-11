@@ -7,6 +7,7 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { emptyDb, loadDb, saveChanges } from '@/lib/repository';
 import { diff, emptyVersions, mergeVersions, snapshotOf, type Snapshot } from '@/lib/rows';
 import type { Db } from '@/lib/types';
+import { BootScreen } from './boot-screen';
 
 export type SaveState = 'saved' | 'saving' | 'error';
 /** Borra algo y deja unos segundos para deshacerlo. Mientras tanto no se guarda nada: si se deshace, la base nunca se enteró. */
@@ -136,7 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   if (status === 'error') return <div className="grid min-h-dvh place-items-center p-6 text-center"><div><p className="font-bold">No pudimos cargar tus datos.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet y volvé a intentar.</p><button className="btn btn-primary mt-4" onClick={() => { setStatus('loading'); load().catch(() => setStatus('error')); }}>Reintentar</button></div></div>;
-  return <Context.Provider value={{ db, ready: status === 'ready', update, undoable, saveState, email, signOut, photoPath, setPhotoPath }}>{status === 'ready' ? children : <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando tus datos…</div>}</Context.Provider>;
+  return <Context.Provider value={{ db, ready: status === 'ready', update, undoable, saveState, email, signOut, photoPath, setPhotoPath }}>{status === 'ready' ? children : <BootScreen/>}</Context.Provider>;
 }
 
 export const useStore = () => { const store = useContext(Context); if (!store) throw new Error('StoreProvider requerido'); return store; };

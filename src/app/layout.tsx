@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import { AppRoot } from '@/components/app-root';
 import { ServiceWorker } from '@/components/service-worker';
+import { SPLASH_SCREENS } from '@/lib/splash-screens';
 
 // Tipografías guardadas en el proyecto (licencia OFL): compilar no depende de Google Fonts,
 // que a veces responde con direcciones que rompen next/font en Vercel.
@@ -17,8 +18,9 @@ export const metadata: Metadata = {
   title: 'BS Marketing',
   description: 'Fiestas, equipo, cobros y pagos de las coberturas de contenido.',
   applicationName: 'BS Marketing',
-  // En iPhone, instalada desde "Agregar a inicio": pantalla completa con la barra de estado sobre el índigo.
-  appleWebApp: { capable: true, title: 'BS Marketing', statusBarStyle: 'black-translucent' },
+  // En iPhone, instalada desde "Agregar a inicio": pantalla completa con la barra de estado sobre el índigo,
+  // y al abrir, el logo sobre la noche en vez de una pantalla blanca.
+  appleWebApp: { capable: true, title: 'BS Marketing', statusBarStyle: 'black-translucent', startupImage: SPLASH_SCREENS },
   formatDetection: { telephone: false }
 };
 export const viewport: Viewport = {

@@ -6,6 +6,7 @@ import { StoreProvider } from './store';
 import { Shell } from './shell';
 import { CmHome } from './cm-home';
 import { FirstPassword } from './first-password';
+import { BootScreen } from './boot-screen';
 
 type Role = 'loading' | 'coordinadora' | 'cm' | 'first-password' | 'none' | 'error';
 
@@ -36,7 +37,7 @@ function RoleGate({ children }: { children: React.ReactNode }) {
   if (role === 'coordinadora') return <StoreProvider><Shell>{children}</Shell></StoreProvider>;
   if (role === 'cm') return <CmHome onSignOut={signOut}/>;
   if (role === 'first-password') return <FirstPassword onDone={() => setRole('cm')} onSignOut={() => void signOut()}/>;
-  if (role === 'loading') return <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--muted)]">Cargando…</div>;
+  if (role === 'loading') return <BootScreen/>;
   return <div className="grid min-h-dvh place-items-center p-6 text-center"><div className="max-w-sm">
     {role === 'error'
       ? <><p className="font-bold">No pudimos verificar tu cuenta.</p><p className="muted mt-1 text-sm">Revisá la conexión a internet y volvé a intentar.</p><button className="btn btn-primary mt-4" onClick={() => { setRole('loading'); setAttempt(n => n + 1); }}>Reintentar</button></>
