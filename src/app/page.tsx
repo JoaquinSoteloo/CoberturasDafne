@@ -12,6 +12,7 @@ import type { TransferData } from '@/lib/transfer';
 import { stageCounts } from '@/lib/content';
 import { ars } from '@/lib/money';
 import { byPartyType, collectionPending, dueCollections, duePayments, monthly } from '@/lib/domain';
+import { dueLabel, editTitle } from '@/components/edit-request';
 
 const daysAgo = (startsAt: string) => { const n = Math.round((Date.now() - new Date(`${startsAt.slice(0, 10)}T12:00`).getTime()) / 86400000); return n <= 1 ? 'fue ayer' : `fue hace ${n} días`; };
 const shortDate = (iso: string) => ({ day: Number(iso.slice(8, 10)), month: new Intl.DateTimeFormat('es-AR', { month: 'short' }).format(new Date(`${iso.slice(0, 10)}T12:00`)).replace('.', '') });
@@ -55,6 +56,8 @@ export default function Home() {
   type Todo = { id: string; href: string; title: string; when: string; lines: string[] };
   const todo: Todo[] = [
     ...inbox.map(p => ({ id: `r-${p.id}`, href: `/pagos?revisar=${p.id}`, title: 'Comprobante para revisar', when: received(p.created_at), lines: [[p.data.amountCents ? ars(p.data.amountCents) : '', p.reason].filter(Boolean).join(' · ')] })),
+    // Ediciones pedidas que ya deberían haber llegado.
+    ...db.edits.filter(e => e.status === 'pedida' && e.dueOn && e.dueOn <= today).map(e => ({ id: `e-${e.id}`, href: `/pagos?edicion=${e.id}`, title: editTitle(db, e), when: dueLabel(e.dueOn, today), lines: ['¿Ya la entregó? Marcala para pagarla'] })),
     ...issues.reduce((m, { c, text }) => { const t = m.get(c.id); if (t) t.lines.push(text); else m.set(c.id, { id: c.id, href: `/coberturas/${c.id}`, title: c.name, when: c.startsAt.slice(0, 10) < today ? daysAgo(c.startsAt) : untilLabel(c.startsAt).toLowerCase(), lines: [text] }); return m; }, new Map<string, Todo>()).values(),
   ];
   const shownTodo = showAll ? todo : todo.slice(0, TODO_LIMIT);

@@ -34,4 +34,13 @@ export type Coverage = {
 export type Collection = { id: string; coverageId: string; date: string; amountCents: number; notes: string; /** Captura de la transferencia del salón. */ receiptPath?: string };
 export type Allocation = { conceptId: string; amountCents: number };
 export type CmPayment = { id: string; cmId: string; date: string; allocations: Allocation[]; notes: string; /** Captura de la transferencia. */ receiptPath?: string };
-export type Db = { version: 1; salons: Salon[]; cms: Cm[]; coverages: Coverage[]; collections: Collection[]; cmPayments: CmPayment[] };
+export type EditFormat = 'historia' | 'reel' | 'carrusel';
+/**
+ * Una edición de video que Dafne le pide a una CM aparte de las fiestas. El pedido va por WhatsApp;
+ * acá queda para pagarlo aparte. Se le debe cuando está entregada. Fechas "AAAA-MM-DD" ('' = sin dato).
+ */
+export type EditRequest = {
+  id: string; cmId: string; format: EditFormat; details: string; requestedOn: string; dueOn: string;
+  amountCents: number; status: 'pedida' | 'entregada'; deliveredOn: string;
+};
+export type Db = { version: 1; salons: Salon[]; cms: Cm[]; coverages: Coverage[]; collections: Collection[]; cmPayments: CmPayment[]; edits: EditRequest[] };

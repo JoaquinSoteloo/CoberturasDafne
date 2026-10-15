@@ -1,20 +1,19 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, CircleCheck, FileCheck2, MessageCircle, Pencil, ScanLine, Upload } from 'lucide-react';
-import { toast } from 'sonner';
-import { supabaseBrowser } from '@/lib/supabase/client';
-import { openReceipt } from '@/lib/receipts';
-import { active, collected, collectionPending, concepts, expectedIncome, isDue, isOwed, paymentTotal, type Concept } from '@/lib/domain';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, CircleCheck, Clapperboard, MessageCircle, Pencil, ScanLine, Upload } from 'lucide-react';
+import { EDIT_FORMATS, active, collected, collectionPending, concepts, editOf, expectedIncome, isDue, isOwed, paymentTotal, type Concept } from '@/lib/domain';
 import { dayKey } from '@/lib/calendar';
 import { ars, dateLabel } from '@/lib/money';
-import type { Coverage, Db } from '@/lib/types';
+import type { Coverage, Db, EditRequest } from '@/lib/types';
 import { Avatar } from './avatar';
 import { MpTransfer } from './mp-transfer';
 import { ReceiptIntakeButton } from './receipt-intake';
+import { ReceiptButton } from './receipt-button';
+import { EditRequestSheet, dueLabel, editTitle } from './edit-request';
 import { Meter, Modal, cap, shortDay } from './ui';
 
-type Sheet = { kind: 'cobrar'; coverageId: string } | { kind: 'pagar'; cmId: string } | null;
+export type Sheet = { kind: 'cobrar'; coverageId: string } | { kind: 'pagar'; cmId: string } | { kind: 'edicion'; id: string } | null;
 type Edit = (m: { kind: 'cobro' | 'pago'; id: string }) => void;
 
 const monthTitle = (m: string) => cap(new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'numeric' }).format(new Date(`${m}-01T12:00`)));
@@ -24,16 +23,10 @@ const ago = (iso: string) => { const n = daysSince(iso); return n <= 0 ? 'hoy' :
 /** "Cobertura" o "Uber de ida", sin el nombre de la fiesta. */
 const conceptName = (x: Concept) => x.id.startsWith('fee:') ? 'Cobertura' : x.label.replace(/^Reintegro /, '').replace(/ · .*$/, '');
 const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((s, x) => s + f(x), 0);
-
-function ReceiptButton({ path }: { path?: string }) {
-  const [busy, setBusy] = useState(false);
-  if (!path) return null;
-  return <button type="button" className="btn btn-quiet btn-small" disabled={busy} onClick={async () => {
-    setBusy(true);
-    try { await openReceipt(supabaseBrowser(), path); } catch (e) { toast.error(e instanceof Error ? e.message : 'No se pudo abrir el comprobante.'); }
-    finally { setBusy(false); }
-  }}><FileCheck2 size={15}/>{busy ? 'Abriendo…' : 'Comprobante'}</button>;
-}
+/** De qué es lo que se le debe a una CM: la fiesta, o "Reel (edición)". */
+const whatOf = (db: Db, x: Concept) => x.coverageId ? db.coverages.find(c => c.id === x.coverageId)?.name : `${EDIT_FORMATS[editOf(db, x.id)?.format ?? 'reel']} (edición)`;
+/** El día de una edición: cuando la entregó o, si no, cuando se pidió. */
+const editDay = (e: EditRequest) => e.deliveredOn || e.requestedOn;
 
 /**
  * Pagos de Dafne, pensado para responder dos preguntas: quién le debe y a quién le debe.
@@ -49,7 +42,6 @@ export function PayOverview({ db, initial, onManualCollect, onManualPay, onEdit 
 }) {
   const [sheet, setSheet] = useState<Sheet>(initial ?? null);
   const today = dayKey(new Date()); const month = today.slice(0, 7);
-  const cov = (id: string) => db.coverages.find(c => c.id === id);
   const byDate = (a: Coverage, b: Coverage) => a.startsAt.localeCompare(b.startsAt);
   const owing = db.coverages.filter(c => active(c) && collectionPending(db, c) > 0);
   const dueCov = owing.filter(c => isDue(c, today)).sort(byDate);
@@ -57,6 +49,8 @@ export function PayOverview({ db, initial, onManualCollect, onManualPay, onEdit 
   const pending = concepts(db).filter(x => x.pendingCents > 0);
   const dueItems = pending.filter(x => isOwed(db, x, today));
   const laterTeam = sum(pending.filter(x => !dueItems.includes(x)), x => x.pendingCents);
+  const laterWhat = [pending.some(x => !dueItems.includes(x) && x.coverageId) ? 'fiestas que vienen' : '', pending.some(x => !dueItems.includes(x) && !x.coverageId) ? 'ediciones sin entregar' : ''].filter(Boolean).join(' y ');
+  const asked = db.edits.filter(e => e.status === 'pedida').sort((a, b) => (a.dueOn || '9999').localeCompare(b.dueOn || '9999') || a.requestedOn.localeCompare(b.requestedOn));
   const crew = [...new Set(dueItems.map(x => x.cmId))].map(cmId => {
     const items = dueItems.filter(x => x.cmId === cmId);
     return { cm: db.cms.find(x => x.id === cmId), cmId, items, total: sum(items, x => x.pendingCents) };
@@ -90,7 +84,7 @@ export function PayOverview({ db, initial, onManualCollect, onManualPay, onEdit 
     <section aria-labelledby="pay-title">
       <h2 id="pay-title" className="pay-section-title">Para pagar</h2>
       {crew.length ? <ul className="card pay-list">{crew.map(({ cm, cmId, items, total }) => {
-        const parties = [...new Set(items.map(x => cov(x.coverageId)?.name).filter(Boolean))];
+        const parties = [...new Set(items.map(x => whatOf(db, x)).filter(Boolean))];
         const ubers = items.some(x => x.id.startsWith('expense:'));
         return <li key={cmId}><div className="pay-row">
           <Avatar name={cm?.name ?? '?'} photoPath={cm?.photoPath} size={38}/>
@@ -99,12 +93,23 @@ export function PayOverview({ db, initial, onManualCollect, onManualPay, onEdit 
           <button type="button" className="btn btn-primary btn-small" onClick={() => setSheet({ kind: 'pagar', cmId })}>Pagar</button>
         </div></li>;
       })}</ul> : <p className="pay-clear"><CircleCheck size={18}/> Estás al día con el equipo.</p>}
-      {laterTeam > 0 && <p className="muted mt-2 px-1 text-sm">Más adelante: {ars(laterTeam)} de fiestas que vienen.</p>}
+      {laterTeam > 0 && <p className="muted mt-2 px-1 text-sm">Más adelante: {ars(laterTeam)} de {laterWhat}.</p>}
     </section>
 
-    <History db={db} today={today} onEdit={onEdit} onCollect={id => setSheet({ kind: 'cobrar', coverageId: id })} onPay={id => setSheet({ kind: 'pagar', cmId: id })}/>
+    {asked.length > 0 && <section aria-labelledby="edits-title">
+      <h2 id="edits-title" className="pay-section-title">Ediciones pedidas</h2>
+      <ul className="card pay-list">{asked.map(e => { const late = !!e.dueOn && e.dueOn < today;
+        return <li key={e.id}><button type="button" className="pay-row" onClick={() => setSheet({ kind: 'edicion', id: e.id })}>
+          <span className="edit-icon" aria-hidden="true"><Clapperboard size={19}/></span>
+          <span className="min-w-0 flex-1"><span className="block truncate font-bold">{editTitle(db, e)}</span><span className="muted block truncate text-sm">{e.dueOn ? <span className={late ? 'pay-late' : ''}>{dueLabel(e.dueOn, today)}</span> : 'sin fecha'}{e.details ? ` · ${e.details}` : ''}</span></span>
+          <span className="pay-amount">{e.amountCents ? ars(e.amountCents) : '—'}</span><ChevronRight size={18} className="shrink-0 text-[var(--muted)]" aria-hidden="true"/>
+        </button></li>; })}</ul>
+    </section>}
+
+    <History db={db} today={today} onEdit={onEdit} onCollect={id => setSheet({ kind: 'cobrar', coverageId: id })} onPay={id => setSheet({ kind: 'pagar', cmId: id })} onOpenEdit={id => setSheet({ kind: 'edicion', id })}/>
 
     {sheet?.kind === 'cobrar' && <CollectSheet db={db} coverageId={sheet.coverageId} onEdit={onEdit} onClose={() => setSheet(null)} onManual={() => { setSheet(null); onManualCollect(sheet.coverageId); }}/>}
+    {sheet?.kind === 'edicion' && <EditRequestSheet id={sheet.id} onClose={() => setSheet(null)}/>}
     {sheet?.kind === 'pagar' && <PaySheet db={db} cmId={sheet.cmId} today={today} onClose={() => setSheet(null)} onManual={(ids, total) => { setSheet(null); onManualPay(sheet.cmId, ids, total); }}/>}
   </div>;
 }
@@ -134,8 +139,9 @@ function CollectSheet({ db, coverageId, onClose, onManual, onEdit }: { db: Db; c
 function PaySheet({ db, cmId, today, onClose, onManual }: { db: Db; cmId: string; today: string; onClose: () => void; onManual: (ids: string[], total: number) => void }) {
   const cm = db.cms.find(x => x.id === cmId);
   const cov = (id: string) => db.coverages.find(c => c.id === id);
+  const when = (x: Concept) => cov(x.coverageId)?.startsAt ?? (editOf(db, x.id) ? editDay(editOf(db, x.id)!) : '');
   const items = concepts(db).filter(x => x.cmId === cmId && x.pendingCents > 0)
-    .sort((a, b) => (cov(a.coverageId)?.startsAt ?? '').localeCompare(cov(b.coverageId)?.startsAt ?? '') || (a.id.startsWith('fee:') ? -1 : 1));
+    .sort((a, b) => when(a).localeCompare(when(b)) || (a.id.startsWith('fee:') ? -1 : 1));
   const due = (x: Concept) => isOwed(db, x, today);
   const [selected, setSelected] = useState<string[]>(() => items.filter(due).map(x => x.id));
   const total = sum(items.filter(x => selected.includes(x.id)), x => x.pendingCents);
@@ -145,7 +151,7 @@ function PaySheet({ db, cmId, today, onClose, onManual }: { db: Db; cmId: string
     <div className="flex items-center gap-3"><Avatar name={cm?.name ?? '?'} photoPath={cm?.photoPath} size={44}/><div className="min-w-0"><p className="truncate font-bold">{cm?.name}</p><p className="muted truncate text-sm">{cm?.alias ? `Alias ${cm.alias}` : 'Sin alias cargado'}</p></div></div>
     {items.length ? <ul className="pay-pick">{items.map(x => { const c = cov(x.coverageId); return <li key={x.id}><label>
       <input type="checkbox" checked={selected.includes(x.id)} onChange={() => toggle(x.id)}/>
-      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c?.name}</span><span className="muted block text-sm">{conceptName(x)}{c && !due(x) ? (isDue(c, today) ? ' · no confirmó' : ' · fiesta que viene') : ''}</span></span>
+      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{whatOf(db, x)}</span><span className="muted block truncate text-sm">{c ? `${conceptName(x)}${due(x) ? '' : isDue(c, today) ? ' · no confirmó' : ' · fiesta que viene'}` : `${due(x) ? '' : 'Sin entregar · '}${editOf(db, x.id)?.details || 'Edición'}`}</span></span>
       <span className="pay-amount">{ars(x.pendingCents)}</span>
     </label></li>; })}<li className="pay-pick-total"><span>Total</span><strong>{ars(total)}</strong></li></ul> : <p className="pay-clear"><CircleCheck size={18}/> No se le debe nada.</p>}
     {total > 0 && <>
@@ -163,44 +169,70 @@ function MovementLine({ title, detail, amount, path, onEdit }: { title: string; 
   </li>;
 }
 
-/** Cada mes, cerrado; adentro, cada fiesta con sus cobros y lo que se le pagó al equipo. */
-function History({ db, today, onEdit, onCollect, onPay }: { db: Db; today: string; onEdit: Edit; onCollect: (coverageId: string) => void; onPay: (cmId: string) => void }) {
+/** Cada mes, cerrado; adentro, cada fiesta con sus cobros y lo que se le pagó al equipo, y cada edición con su pago. */
+function History({ db, today, onEdit, onCollect, onPay, onOpenEdit }: { db: Db; today: string; onEdit: Edit; onCollect: (coverageId: string) => void; onPay: (cmId: string) => void; onOpenEdit: (id: string) => void }) {
   const all = concepts(db);
   const parties = db.coverages.filter(c => active(c) && c.startsAt.slice(0, 7) <= today.slice(0, 7) && (expectedIncome(c) > 0 || all.some(x => x.coverageId === c.id)));
-  const months = [...new Set(parties.map(c => c.startsAt.slice(0, 7)))].sort().reverse();
+  const edits = db.edits.filter(e => editDay(e).slice(0, 7) <= today.slice(0, 7));
+  const months = [...new Set([...parties.map(c => c.startsAt.slice(0, 7)), ...edits.map(e => editDay(e).slice(0, 7))])].sort().reverse();
   if (!months.length) return null;
   const owedTeam = (id: string) => sum(all.filter(x => x.coverageId === id), x => x.pendingCents);
   const settled = (c: Coverage) => collectionPending(db, c) <= 0 && owedTeam(c.id) <= 0;
+  const editOwed = (e: EditRequest) => all.find(x => x.id === `edit:${e.id}`)?.pendingCents ?? 0;
+  const paymentLines = (ids: Set<string>) => db.cmPayments.filter(p => p.allocations.some(a => ids.has(a.conceptId))).sort((a, b) => a.date.localeCompare(b.date)).map(p => {
+    const here = sum(p.allocations.filter(a => ids.has(a.conceptId)), a => a.amountCents); const whole = paymentTotal(p);
+    return <MovementLine key={p.id} title={`${db.cms.find(m => m.id === p.cmId)?.name.split(' ')[0] ?? 'CM'} · ${dateLabel(p.date)}`} detail={[here !== whole ? `Parte de un pago de ${ars(whole)}` : '', p.notes].filter(Boolean).join(' · ')} amount={here} path={p.receiptPath} onEdit={() => onEdit({ kind: 'pago', id: p.id })}/>;
+  });
+
+  const partyRow = (c: Coverage) => {
+    const d = shortDay(c.startsAt); const owe = collectionPending(db, c); const team = owedTeam(c.id);
+    const items = all.filter(x => x.coverageId === c.id); const payments = paymentLines(new Set(items.map(x => x.id)));
+    const collections = db.collections.filter(x => x.coverageId === c.id).sort((a, b) => a.date.localeCompare(b.date));
+    return <li key={c.id}><details className="pay-party">
+      <summary><span className="flex items-center gap-3"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span>
+        <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="muted block truncate text-sm">{settled(c) ? 'Saldada' : [owe > 0 ? `falta cobrar ${ars(owe)}` : '', team > 0 ? `falta pagar ${ars(team)}` : ''].filter(Boolean).join(' · ')}</span></span>
+        {settled(c) && <CircleCheck size={18} className="shrink-0 text-[var(--ok)]" aria-label="Saldada"/>}
+        <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></span></summary>
+      <div className="mt-3 space-y-4">
+        <div><div className="flex items-center justify-between gap-2"><p className="text-sm font-bold">Cobros del salón</p>{owe > 0 && <button type="button" className="text-link" onClick={() => onCollect(c.id)}>Cobrar {ars(owe)}</button>}</div>
+          {collections.length ? <ul className="mt-2 space-y-2">{collections.map(r => <MovementLine key={r.id} title={dateLabel(r.date)} detail={r.notes} amount={r.amountCents} path={r.receiptPath} onEdit={() => onEdit({ kind: 'cobro', id: r.id })}/>)}</ul> : <p className="muted mt-1 text-sm">Todavía no hay cobros.</p>}</div>
+        {items.length > 0 && <div><p className="text-sm font-bold">Equipo</p>
+          <ul className="mt-2 space-y-1">{items.map(x => <li key={x.id} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate">{db.cms.find(m => m.id === x.cmId)?.name.split(' ')[0]} · {conceptName(x)}</span><span className="shrink-0 tabular-nums">{ars(x.amountCents)} {x.pendingCents > 0 ? <button type="button" className="badge badge-warn" onClick={() => onPay(x.cmId)}>falta {ars(x.pendingCents)}</button> : <span className="badge badge-success">pagado</span>}</span></li>)}</ul>
+          {payments.length > 0 && <ul className="mt-2 space-y-2">{payments}</ul>}
+        </div>}
+        <Link className="text-link" href={`/coberturas/${c.id}`}>Ver la fiesta</Link>
+      </div>
+    </details></li>;
+  };
+
+  const editRow = (e: EditRequest) => {
+    const d = shortDay(editDay(e)); const owe = editOwed(e); const paidOff = e.status === 'entregada' && owe <= 0;
+    const payments = paymentLines(new Set([`edit:${e.id}`]));
+    return <li key={e.id}><details className="pay-party">
+      <summary><span className="flex items-center gap-3"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span>
+        <span className="min-w-0 flex-1"><span className="block truncate font-bold">{editTitle(db, e)}</span><span className="muted block truncate text-sm">{e.status === 'pedida' ? 'Edición pedida, sin entregar' : paidOff ? 'Edición pagada' : `Edición · falta pagar ${ars(owe)}`}</span></span>
+        {paidOff && <CircleCheck size={18} className="shrink-0 text-[var(--ok)]" aria-label="Pagada"/>}
+        <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></span></summary>
+      <div className="mt-3 space-y-4">
+        {payments.length ? <ul className="space-y-2">{payments}</ul> : <p className="muted text-sm">{e.status === 'pedida' ? 'Se le paga cuando la entregue.' : 'Todavía no se le pagó.'}</p>}
+        <div className="flex flex-wrap gap-4">{e.status === 'entregada' && owe > 0 && <button type="button" className="text-link" onClick={() => onPay(e.cmId)}>Pagar {ars(owe)}</button>}<button type="button" className="text-link" onClick={() => onOpenEdit(e.id)}>Ver el pedido</button></div>
+      </div>
+    </details></li>;
+  };
+
   return <section aria-labelledby="history-title">
     <h2 id="history-title" className="pay-section-title">Historial</h2>
     <div className="card pay-history">{months.map(m => {
-      const list = parties.filter(c => c.startsAt.startsWith(m)).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
-      const due = list.filter(c => isDue(c, today)); const done = due.filter(settled).length; const coming = list.length - due.length;
-      const status = [due.length ? `${done} de ${due.length} saldada${due.length === 1 ? '' : 's'}` : '', coming ? `${coming} por venir` : ''].filter(Boolean).join(' · ');
+      const list = parties.filter(c => c.startsAt.startsWith(m));
+      const monthEdits = edits.filter(e => editDay(e).startsWith(m)); const delivered = monthEdits.filter(e => e.status === 'entregada');
+      const due = list.filter(c => isDue(c, today));
+      const dueCount = due.length + delivered.length; const done = due.filter(settled).length + delivered.filter(e => editOwed(e) <= 0).length;
+      const coming = list.length - due.length + monthEdits.length - delivered.length;
+      const status = [dueCount ? `${done} de ${dueCount} saldada${dueCount === 1 ? '' : 's'}` : '', coming ? `${coming} por venir` : ''].filter(Boolean).join(' · ');
+      const rows = [...list.map(c => ({ at: c.startsAt, el: partyRow(c) })), ...monthEdits.map(e => ({ at: editDay(e), el: editRow(e) }))].sort((a, b) => b.at.localeCompare(a.at));
       return <details key={m} className="pay-history-month">
-        <summary><span className="flex-1 font-bold">{monthTitle(m)}</span>{!coming && done === due.length ? <span className="badge badge-success">Todo saldado</span> : <span className="muted text-sm">{status}</span>}<ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></summary>
-        <ul className="space-y-2 pb-3">{list.map(c => {
-          const d = shortDay(c.startsAt); const owe = collectionPending(db, c); const team = owedTeam(c.id);
-          const items = all.filter(x => x.coverageId === c.id); const ids = new Set(items.map(x => x.id));
-          const collections = db.collections.filter(x => x.coverageId === c.id).sort((a, b) => a.date.localeCompare(b.date));
-          const payments = db.cmPayments.filter(p => p.allocations.some(a => ids.has(a.conceptId))).sort((a, b) => a.date.localeCompare(b.date));
-          return <li key={c.id}><details className="pay-party">
-            <summary><span className="flex items-center gap-3"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span>
-              <span className="min-w-0 flex-1"><span className="block truncate font-bold">{c.name}</span><span className="muted block truncate text-sm">{settled(c) ? 'Saldada' : [owe > 0 ? `falta cobrar ${ars(owe)}` : '', team > 0 ? `falta pagar ${ars(team)}` : ''].filter(Boolean).join(' · ')}</span></span>
-              {settled(c) && <CircleCheck size={18} className="shrink-0 text-[var(--ok)]" aria-label="Saldada"/>}
-              <ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></span></summary>
-            <div className="mt-3 space-y-4">
-              <div><div className="flex items-center justify-between gap-2"><p className="text-sm font-bold">Cobros del salón</p>{owe > 0 && <button type="button" className="text-link" onClick={() => onCollect(c.id)}>Cobrar {ars(owe)}</button>}</div>
-                {collections.length ? <ul className="mt-2 space-y-2">{collections.map(r => <MovementLine key={r.id} title={dateLabel(r.date)} detail={r.notes} amount={r.amountCents} path={r.receiptPath} onEdit={() => onEdit({ kind: 'cobro', id: r.id })}/>)}</ul> : <p className="muted mt-1 text-sm">Todavía no hay cobros.</p>}</div>
-              {items.length > 0 && <div><p className="text-sm font-bold">Equipo</p>
-                <ul className="mt-2 space-y-1">{items.map(x => <li key={x.id} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 truncate">{db.cms.find(m => m.id === x.cmId)?.name.split(' ')[0]} · {conceptName(x)}</span><span className="shrink-0 tabular-nums">{ars(x.amountCents)} {x.pendingCents > 0 ? <button type="button" className="badge badge-warn" onClick={() => onPay(x.cmId)}>falta {ars(x.pendingCents)}</button> : <span className="badge badge-success">pagado</span>}</span></li>)}</ul>
-                {payments.length > 0 && <ul className="mt-2 space-y-2">{payments.map(p => { const here = sum(p.allocations.filter(a => ids.has(a.conceptId)), a => a.amountCents); const whole = paymentTotal(p);
-                  return <MovementLine key={p.id} title={`${db.cms.find(m => m.id === p.cmId)?.name.split(' ')[0] ?? 'CM'} · ${dateLabel(p.date)}`} detail={[here !== whole ? `Parte de un pago de ${ars(whole)}` : '', p.notes].filter(Boolean).join(' · ')} amount={here} path={p.receiptPath} onEdit={() => onEdit({ kind: 'pago', id: p.id })}/>; })}</ul>}
-              </div>}
-              <Link className="text-link" href={`/coberturas/${c.id}`}>Ver la fiesta</Link>
-            </div>
-          </details></li>;
-        })}</ul>
+        <summary><span className="flex-1 font-bold">{monthTitle(m)}</span>{!coming && done === dueCount ? <span className="badge badge-success">Todo saldado</span> : <span className="muted text-sm">{status}</span>}<ChevronDown size={18} className="pay-party-chevron shrink-0" aria-hidden="true"/></summary>
+        <ul className="space-y-2 pb-3">{rows.map(r => r.el)}</ul>
       </details>;
     })}</div>
   </section>;

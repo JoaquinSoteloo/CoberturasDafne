@@ -1,4 +1,4 @@
-import { allocatePayment, collectionPending, concepts, expectedIncome, paymentTotal, validateCollection } from './domain';
+import { allocatePayment, collectionPending, concepts, editOf, expectedIncome, paymentTotal, validateCollection } from './domain';
 import { ars } from './money';
 import { classifyTransfer, decideTransfer, type TransferData, type TransferDecision, type TransferHint } from './transfer';
 import type { CmPayment, Collection, Db } from './types';
@@ -15,7 +15,9 @@ export function decideFor(db: Db, t: TransferData, email: string, hint?: Transfe
   const coverage = (id: string) => db.coverages.find(c => c.id === id);
   return decideTransfer({
     t, cms: db.cms, ownerWords: ownerWordsOf(email), hint,
-    items: concepts(db).map(x => ({ id: x.id, cmId: x.cmId, coverageId: x.coverageId, pendingCents: x.pendingCents, startsAt: coverage(x.coverageId)?.startsAt ?? '' })),
+    // Una edición no es de ninguna fiesta: cuenta como un grupo propio, con la fecha en que se entregó (o se pidió).
+    items: concepts(db).map(x => { const e = editOf(db, x.id);
+      return { id: x.id, cmId: x.cmId, coverageId: x.coverageId || x.id, pendingCents: x.pendingCents, startsAt: coverage(x.coverageId)?.startsAt ?? (e ? e.deliveredOn || e.requestedOn : '') }; }),
     collections: db.coverages.map(c => ({ id: c.id, startsAt: c.startsAt, agreedCents: expectedIncome(c), pendingCents: collectionPending(db, c), client: c.client, salon: db.salons.find(s => s.id === c.salonId)?.name ?? '' })),
     movements: [
       ...db.collections.map(c => ({ id: c.id, kind: 'cobro' as const, amountCents: c.amountCents, date: c.date, hasReceipt: !!c.receiptPath })),
@@ -37,7 +39,7 @@ export function movementFor(db: Db, d: TransferDecision, t: TransferData, id: st
     let allocations;
     try { allocations = allocatePayment(db, d.cmId, d.conceptIds, d.amountCents); } catch { return null; }
     const all = concepts(db);
-    const parties = [...new Set(d.conceptIds.map(c => all.find(x => x.id === c)?.coverageId))].map(c => coverage(c ?? '')?.name).filter(Boolean);
+    const parties = [...new Set(d.conceptIds.map(c => { const x = all.find(y => y.id === c); return x?.coverageId ? coverage(x.coverageId)?.name : x?.label; }))].filter(Boolean);
     const ubers = d.conceptIds.some(c => c.startsWith('expense:'));
     const first = db.cms.find(x => x.id === d.cmId)?.name.split(' ')[0] ?? 'la CM';
     return { kind: 'pago', payment: { id, cmId: d.cmId, date, allocations, notes }, message: `Registré el pago de ${ars(d.amountCents)} a ${first}: ${parties.join(', ')}${ubers ? ' (con Uber)' : ''}.` };

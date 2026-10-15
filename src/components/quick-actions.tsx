@@ -1,19 +1,21 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Clapperboard, Plus, X } from 'lucide-react';
 import { Modal } from './ui';
 import { QuickCoverageForm } from './quick-coverage-form';
 import { ReceiptIntakeButton } from './receipt-intake';
 import { UberFromReceipt } from './uber-from-receipt';
+import { EditRequestForm } from './edit-request';
 
 /**
- * El botón "+" de Dafne, en todas las pantallas: nueva cobertura, cargar comprobantes de
- * transferencias (la IA los registra solos si no hay dudas) o un recibo de Uber. Las opciones quedan montadas aunque el menú esté cerrado,
+ * El botón "+" de Dafne, en todas las pantallas: nueva cobertura, pedirle una edición a una CM,
+ * cargar comprobantes de transferencias (la IA los registra solos si no hay dudas) o un recibo de Uber. Las opciones quedan montadas aunque el menú esté cerrado,
  * para que lo que abren (el selector de archivo, la revisión del Uber) siga funcionando.
  */
 export function QuickActions() {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [asking, setAsking] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
@@ -24,10 +26,12 @@ export function QuickActions() {
     {open && <button type="button" className="fab-backdrop" aria-label="Cerrar" onClick={() => setOpen(false)}/>}
     <div className={`fab-menu ${open ? 'is-open' : ''}`} aria-hidden={!open} onClick={() => setOpen(false)}>
       <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}><Plus size={17}/> Nueva cobertura</button>
+      <button type="button" className="btn btn-secondary" onClick={() => setAsking(true)}><Clapperboard size={17}/> Pedir edición</button>
       <ReceiptIntakeButton/>
       <UberFromReceipt label="Cargar recibo de Uber"/>
     </div>
     <button type="button" className={`fab ${open ? 'is-open' : ''}`} aria-label={open ? 'Cerrar' : 'Cargar algo nuevo'} aria-expanded={open} onClick={() => setOpen(o => !o)}>{open ? <X size={26}/> : <Plus size={28}/>}</button>
     {creating && <Modal title="Nueva cobertura" onClose={() => setCreating(false)}><QuickCoverageForm onDone={() => setCreating(false)}/></Modal>}
+    {asking && <Modal title="Pedir edición" onClose={() => setAsking(false)}><EditRequestForm onDone={() => setAsking(false)}/></Modal>}
   </>;
 }

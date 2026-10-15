@@ -1,6 +1,11 @@
-import type { CmPayment, Coverage, Db, Expense } from './types';
+import type { CmPayment, Coverage, Db, EditFormat, EditRequest, Expense } from './types';
 
+/** Lo que se le paga a una CM: una cobertura o un Uber de una fiesta, o una edición (sin fiesta: coverageId ''). */
 export type Concept = { id: string; cmId: string; coverageId: string; label: string; amountCents: number; paidCents: number; pendingCents: number };
+export const EDIT_FORMATS: Record<EditFormat, string> = { historia: 'Historia', reel: 'Reel', carrusel: 'Carrusel' };
+/** La edición de un concepto "edit:<id>". */
+export const editOf = (db: Db, conceptId: string): EditRequest | undefined =>
+  conceptId.startsWith('edit:') ? db.edits.find(e => e.id === conceptId.slice(5)) : undefined;
 export const active = (c: Coverage) => c.eventStatus !== 'cancelado';
 export const expenseTotal = (c: Coverage) => c.expenses.reduce((sum, e) => sum + e.amountCents, 0);
 export const additionalTotal = (c: Coverage) => c.expenses.filter(e => e.absorbedBy === 'salon').reduce((sum, e) => sum + e.amountCents, 0);
@@ -22,7 +27,8 @@ export const expenseIsPaid = (db: Db, e: Expense): boolean => e.advancedBy === '
 export const concepts = (db: Db): Concept[] => db.coverages.filter(active).flatMap(c => [
   ...working(c).map(a => ({ id: `fee:${a.id}`, cmId: a.cmId, coverageId: c.id, label: `Honorarios · ${c.name}`, amountCents: a.feeCents })),
   ...c.expenses.filter(e => e.advancedBy === 'cm' && e.advancedCmId).map(e => ({ id: `expense:${e.id}`, cmId: e.advancedCmId!, coverageId: c.id, label: `Reintegro ${e.label} · ${c.name}`, amountCents: e.amountCents }))
-].map(item => { const paidCents = conceptPaid(db, item.id); return { ...item, paidCents, pendingCents: Math.max(0, item.amountCents - paidCents) }; }));
+]).concat(db.edits.map(e => ({ id: `edit:${e.id}`, cmId: e.cmId, coverageId: '', label: `Edición · ${EDIT_FORMATS[e.format]}`, amountCents: e.amountCents })))
+  .map(item => { const paidCents = conceptPaid(db, item.id); return { ...item, paidCents, pendingCents: Math.max(0, item.amountCents - paidCents) }; });
 /** Lo que se le debe a una CM. Con `today`, solo lo que ya es deuda (ver isOwed). */
 export const cmPending = (db: Db, cmId: string, today?: string) =>
   concepts(db).filter(c => c.cmId === cmId && (!today || isOwed(db, c, today))).reduce((sum, c) => sum + c.pendingCents, 0);
@@ -31,9 +37,10 @@ export const isDue = (c: Coverage, today: string) => c.startsAt.slice(0, 10) <= 
 export const dueCollections = (db: Db, today: string) => db.coverages.filter(c => isDue(c, today)).reduce((sum, c) => sum + collectionPending(db, c), 0);
 /**
  * ¿Ya se le debe? La cobertura, si la fiesta pasó y la CM confirmó (si no confirmó, Dafne decide
- * desde "A resolver" si fue). Un Uber que adelantó la CM, si la fiesta pasó.
+ * desde "A resolver" si fue). Un Uber que adelantó la CM, si la fiesta pasó. Una edición, si la entregó.
  */
 export const isOwed = (db: Db, x: Pick<Concept, 'id' | 'coverageId'>, today: string) => {
+  if (x.id.startsWith('edit:')) return editOf(db, x.id)?.status === 'entregada';
   const c = db.coverages.find(cv => cv.id === x.coverageId);
   if (!c || !isDue(c, today)) return false;
   return !x.id.startsWith('fee:') || c.assignments.some(a => `fee:${a.id}` === x.id && a.confirmation === 'confirmada');

@@ -1,7 +1,7 @@
 'use client';
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Eye, KeyRound, Pencil, Phone, Receipt } from 'lucide-react';
+import { ArrowLeft, Clapperboard, Eye, KeyRound, Pencil, Phone, Receipt } from 'lucide-react';
 import { useStore } from '@/components/store';
 import { Avatar } from '@/components/avatar';
 import { CmAccess } from '@/components/cm-access';
@@ -10,6 +10,7 @@ import { MpTransfer } from '@/components/mp-transfer';
 import { CmPushBadge, useCmPushStatus } from '@/components/cm-push-status';
 import { Meter, Modal, shortDay } from '@/components/ui';
 import { cmCoverageHistory, concepts, isOwed } from '@/lib/domain';
+import { dueLabel, editTitle, niceDay } from '@/components/edit-request';
 import { ars } from '@/lib/money';
 import { dayKey } from '@/lib/calendar';
 
@@ -36,8 +37,13 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
   const due = mine.filter(c => isOwed(db, c, today));
   const owedFees = due.filter(c => c.id.startsWith('fee:')).reduce((s, c) => s + c.pendingCents, 0);
   const owedUbers = due.filter(c => c.id.startsWith('expense:')).reduce((s, c) => s + c.pendingCents, 0);
-  const later = mine.filter(c => !isOwed(db, c, today)).reduce((s, c) => s + c.pendingCents, 0);
-  const owed = owedFees + owedUbers;
+  const owedEdits = due.filter(c => c.id.startsWith('edit:')).reduce((s, c) => s + c.pendingCents, 0);
+  const notYet = mine.filter(c => !isOwed(db, c, today) && c.pendingCents > 0);
+  const later = notYet.reduce((s, c) => s + c.pendingCents, 0);
+  const laterWhat = [notYet.some(c => c.coverageId) ? 'fiestas que vienen o sin confirmar' : '', notYet.some(c => !c.coverageId) ? 'ediciones sin entregar' : ''].filter(Boolean).join(' y ');
+  const owed = owedFees + owedUbers + owedEdits;
+  const edits = db.edits.filter(e => e.cmId === cm.id).sort((a, b) => (b.deliveredOn || b.requestedOn).localeCompare(a.deliveredOn || a.requestedOn));
+  const editPending = (id: string) => mine.find(c => c.id === `edit:${id}`)?.pendingCents ?? 0;
   const total = due.reduce((s, c) => s + c.amountCents, 0), paid = due.reduce((s, c) => s + Math.min(c.paidCents, c.amountCents), 0);
   const history = cmCoverageHistory(db, cm.id);
   const now = new Date();
@@ -65,7 +71,7 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
 
     <section className="card pay-summary" aria-label="Lo que se le debe">
       <div className="pay-summary-grid">
-        <div><p className="pay-summary-label">{owed > 0 ? 'Le debés' : 'Está al día'}</p><p className={`pay-summary-value ${owed > 0 ? 'is-owed' : ''}`}>{ars(owed)}</p>{owed > 0 && <p className="muted text-sm">Coberturas {ars(owedFees)} · Ubers {ars(owedUbers)}</p>}{later > 0 && <p className="muted text-sm">Más adelante: {ars(later)} de fiestas que vienen o sin confirmar</p>}</div>
+        <div><p className="pay-summary-label">{owed > 0 ? 'Le debés' : 'Está al día'}</p><p className={`pay-summary-value ${owed > 0 ? 'is-owed' : ''}`}>{ars(owed)}</p>{owed > 0 && <p className="muted text-sm">{[`Coberturas ${ars(owedFees)}`, `Ubers ${ars(owedUbers)}`, owedEdits ? `Ediciones ${ars(owedEdits)}` : ''].filter(Boolean).join(' · ')}</p>}{later > 0 && <p className="muted text-sm">Más adelante: {ars(later)} de {laterWhat}</p>}</div>
         <div><p className="pay-summary-label">Pagado en total</p><p className="pay-summary-value">{ars(paid)}</p><p className="muted text-sm">de {ars(total)}</p></div>
       </div>
       {total > 0 && <Meter done={paid} total={total} label={`Pagado ${ars(paid)} de ${ars(total)}`}/>}
@@ -82,6 +88,11 @@ export default function CmProfilePage({ params }: { params: Promise<{ id: string
       {history.length ? <ul className="ledger card">{history.map(({ coverage: c, totalCents, paidCents, pendingCents, hasReimbursements }) => { const d = shortDay(c.startsAt); return <li key={c.id}><Link href={`/coberturas/${c.id}`} className="ledger-row"><span className="ledger-date"><strong>{d.day}</strong>{d.month}</span><span className="min-w-0 flex-1"><span className="block font-bold">{c.name}</span><span className="muted block text-sm">{c.eventStatus === 'cancelado' ? 'Cancelada, no suma al total' : `Pagado ${ars(paidCents)} de ${ars(totalCents)}${hasReimbursements ? ', con Ubers' : ''}`}</span></span><span className="ledger-amount">{c.startsAt.slice(0, 10) > today ? 'Por venir' : pendingCents > 0 ? ars(pendingCents) : 'Saldada'}</span></Link></li>; })}</ul>
         : <p className="muted text-sm">Todavía no participó en coberturas.</p>}
     </section>
+
+    {edits.length > 0 && <section aria-labelledby="edits-title"><h2 id="edits-title" className="section-title mb-3">Ediciones · {edits.length}</h2>
+      <ul className="ledger card">{edits.map(e => { const pending = editPending(e.id);
+        return <li key={e.id}><Link href={`/pagos?edicion=${e.id}`} className="ledger-row"><span className="edit-icon" aria-hidden="true"><Clapperboard size={19}/></span><span className="min-w-0 flex-1"><span className="block font-bold">{editTitle(db, e).replace(/ de .*$/, '')}</span><span className="muted block truncate text-sm">{e.status === 'pedida' ? (e.dueOn ? `Pedida, ${dueLabel(e.dueOn, today)}` : 'Pedida, sin fecha') : `Entregada el ${niceDay(e.deliveredOn || e.requestedOn)}`}{e.details ? ` · ${e.details}` : ''}</span></span><span className="ledger-amount">{e.status === 'pedida' ? 'Pedida' : pending > 0 ? ars(pending) : 'Pagada'}</span></Link></li>; })}</ul>
+    </section>}
 
     {editing && <Modal title={`Editar a ${first}`} onClose={() => setEditing(false)}><CmForm initial={cm} onDone={() => setEditing(false)}/></Modal>}
     {access && <Modal title={`Acceso de ${first}`} onClose={() => setAccess(false)}><CmAccess cm={cm} onEdit={() => { setAccess(false); setEditing(true); }}/></Modal>}

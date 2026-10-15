@@ -1,4 +1,4 @@
-import type { Db, Expense } from './types';
+import type { Db, EditRequest, Expense } from './types';
 
 /**
  * Traducción entre el objeto que usa la app (Db) y las filas de Supabase.
@@ -6,7 +6,7 @@ import type { Db, Expense } from './types';
  * filas que cambiaron desde el último guardado confirmado.
  */
 
-export const TABLES = ['salons', 'cms', 'coverages', 'assignments', 'expenses', 'checklist_items', 'schedule_items', 'collections', 'cm_payments'] as const;
+export const TABLES = ['salons', 'cms', 'coverages', 'assignments', 'expenses', 'checklist_items', 'schedule_items', 'edit_requests', 'collections', 'cm_payments'] as const;
 export type Table = typeof TABLES[number];
 export type Row = { id: string } & Record<string, unknown>;
 export type Rows = Record<Table, Row[]>;
@@ -24,13 +24,15 @@ export function mergeVersions(versions: Versions, saved: Partial<Record<Table, R
   return next;
 }
 
-type Allocation = { position: number; assignment_id: string | null; expense_id: string | null; amount_cents: number };
+type Allocation = { position: number; assignment_id: string | null; expense_id: string | null; edit_id: string | null; amount_cents: number };
 
+/** Cada parte de un pago apunta a una sola cosa: una cobertura (fee), un Uber (expense) o una edición (edit). */
 const conceptRefs = (conceptId: string) => {
   const [kind, id] = conceptId.split(':');
-  return kind === 'fee' ? { assignment_id: id, expense_id: null } : { assignment_id: null, expense_id: id };
+  return { assignment_id: kind === 'fee' ? id : null, expense_id: kind === 'expense' ? id : null, edit_id: kind === 'edit' ? id : null };
 };
-const conceptId = (a: Pick<Allocation, 'assignment_id' | 'expense_id'>) => a.assignment_id ? `fee:${a.assignment_id}` : `expense:${a.expense_id}`;
+const conceptId = (a: Pick<Allocation, 'assignment_id' | 'expense_id' | 'edit_id'>) =>
+  a.assignment_id ? `fee:${a.assignment_id}` : a.edit_id ? `edit:${a.edit_id}` : `expense:${a.expense_id}`;
 
 export function toRows(db: Db): Rows {
   return {
@@ -52,6 +54,10 @@ export function toRows(db: Db): Rows {
     }))),
     checklist_items: db.coverages.flatMap(c => c.checklist.map((x, position) => ({ id: x.id, coverage_id: c.id, text: x.text, done: x.done, stage: x.stage ?? (x.done ? 'drive' : 'pendiente'), position }))),
     schedule_items: db.coverages.flatMap(c => c.schedule.map((m, position) => ({ id: m.id, coverage_id: c.id, at: m.at, label: m.label, notify: m.notify, position }))),
+    edit_requests: db.edits.map(e => ({
+      id: e.id, cm_id: e.cmId, format: e.format, details: e.details, requested_on: e.requestedOn, due_on: e.dueOn || null,
+      amount_cents: e.amountCents, status: e.status, delivered_on: e.deliveredOn || null
+    })),
     collections: db.collections.map(p => ({ id: p.id, coverage_id: p.coverageId, date: p.date, amount_cents: p.amountCents, notes: p.notes })),
     cm_payments: db.cmPayments.map(p => ({
       id: p.id, cm_id: p.cmId, date: p.date, notes: p.notes,
@@ -100,6 +106,10 @@ export function fromRows(rows: Rows): Db {
       }),
       checklist: (checklist.get(c.id) ?? []).map(x => ({ id: x.id, text: str(x.text), done: Boolean(x.done), ...(x.stage === 'whatsapp' ? { stage: 'whatsapp' as const } : {}) })),
       schedule: (schedule.get(c.id) ?? []).map(m => ({ id: m.id, at: minutes(m.at), label: str(m.label), notify: Boolean(m.notify) }))
+    })),
+    edits: rows.edit_requests.map((e): EditRequest => ({
+      id: e.id, cmId: str(e.cm_id), format: e.format as EditRequest['format'], details: str(e.details), requestedOn: str(e.requested_on),
+      dueOn: str(e.due_on), amountCents: Number(e.amount_cents), status: e.status as EditRequest['status'], deliveredOn: str(e.delivered_on)
     })),
     collections: rows.collections.map(p => ({ id: p.id, coverageId: str(p.coverage_id), date: str(p.date), amountCents: Number(p.amount_cents), notes: str(p.notes), ...(p.receipt_path ? { receiptPath: str(p.receipt_path) } : {}) })),
     cmPayments: rows.cm_payments.map(p => ({

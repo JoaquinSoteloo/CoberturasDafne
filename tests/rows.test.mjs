@@ -47,8 +47,8 @@ test('un pago nuevo viaja con su reparto entre honorarios y reintegros', () => {
   assert.deepStrictEqual(changes.upsert.cm_payments, [{
     id: 'pay-2', cm_id: 'cm-luli', date: '2026-10-02', notes: '',
     allocations: [
-      { position: 0, assignment_id: 'as-1', expense_id: null, amount_cents: 500000 },
-      { position: 1, assignment_id: null, expense_id: 'ex-1', amount_cents: 1350000 }
+      { position: 0, assignment_id: 'as-1', expense_id: null, edit_id: null, amount_cents: 500000 },
+      { position: 1, assignment_id: null, expense_id: 'ex-1', edit_id: null, amount_cents: 1350000 }
     ]
   }]);
   // Después de guardar, la nueva foto ya no tiene diferencias.

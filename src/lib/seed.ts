@@ -23,5 +23,6 @@ export const createSeed = (): Db => ({
     { id: 'cov-5', name: 'Aniversario de empresa', partyType: 'Corporativo', client: 'Empresa Horizonte', salonId: 'salon-eclipse', address: 'Av. Libertador 1240, CABA', startsAt: day(-19, '19:00'), endsAt: day(-18, '01:00'), arriveAt: '', livePosting: false, dafneGoes: false, notes: '', assignments: [{ id: 'as-5', cmId: 'cm-luli', feeCents: 8500000, confirmation: 'confirmada' }], agreedCents: 16000000, expenses: [], checklist: [], schedule: [], driveUrl: '', deliveredPieces: 0, deliveryNotes: '', eventStatus: 'realizado', deliveryStatus: 'pendiente' }
   ],
   collections: [{ id: 'col-1', coverageId: 'cov-4', date: date(-5), amountCents: 9000000, notes: 'Seña del salón' }],
-  cmPayments: [{ id: 'pay-1', cmId: 'cm-rochi', date: date(-4), allocations: [{ conceptId: 'fee:as-4', amountCents: 4000000 }], notes: 'Adelanto' }]
+  cmPayments: [{ id: 'pay-1', cmId: 'cm-rochi', date: date(-4), allocations: [{ conceptId: 'fee:as-4', amountCents: 4000000 }], notes: 'Adelanto' }],
+  edits: []
 });

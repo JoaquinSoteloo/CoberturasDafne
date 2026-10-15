@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { TABLES, fromRows, type Changes, type Row, type Rows, type Table, type Versions } from './rows';
 import type { Db } from './types';
 
-export const emptyDb = (): Db => ({ version: 1, salons: [], cms: [], coverages: [], collections: [], cmPayments: [] });
+export const emptyDb = (): Db => ({ version: 1, salons: [], cms: [], coverages: [], collections: [], cmPayments: [], edits: [] });
 export const newId = () => crypto.randomUUID();
 
 /**
@@ -16,15 +16,16 @@ export async function loadDb(supabase: SupabaseClient, ownerId?: string): Promis
     if (error) throw error;
     return (data ?? []) as Row[];
   };
-  const [salons, cms, coverages, assignments, expenses, checklist_items, schedule_items, collections, payments, allocations] = await Promise.all([
+  const [salons, cms, coverages, assignments, expenses, checklist_items, schedule_items, edit_requests, collections, payments, allocations] = await Promise.all([
     read('salons'), read('cms'), read('coverages'), read('assignments'), read('expenses'),
-    read('checklist_items'), read('schedule_items'), read('collections'), read('cm_payments'), read('payment_allocations')
+    read('checklist_items'), read('schedule_items'), read('edit_requests'), read('collections'), read('cm_payments'), read('payment_allocations')
   ]);
   const byPayment = new Map<string, Row[]>();
   for (const a of allocations) byPayment.set(String(a.payment_id), [...(byPayment.get(String(a.payment_id)) ?? []), a]);
   const rows: Rows = {
     salons: sortBy(salons, 'name'), cms: sortBy(cms, 'name'), coverages: sortBy(coverages, 'starts_at'),
     assignments, expenses, checklist_items, schedule_items,
+    edit_requests: sortBy(edit_requests, 'requested_on'),
     collections: sortBy(collections, 'date'),
     cm_payments: sortBy(payments, 'date').map(p => ({ ...p, allocations: byPayment.get(p.id) ?? [] }))
   };

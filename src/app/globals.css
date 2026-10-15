@@ -309,9 +309,13 @@ a.ticket:hover .ticket-stub{background:var(--accent-strong)}
 .cropper img{position:absolute;left:0;top:0;max-width:none;pointer-events:none}
 .cropper-ring{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(13,8,25,.62);outline:2px solid rgba(255,255,255,.9);outline-offset:-2px;pointer-events:none}
 .calendar-subscribe-link{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700;color:var(--ink)}
-.template-types{display:flex;flex-wrap:wrap;gap:8px}
-.template-types button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:700}
+.template-types,.pick-pills{display:flex;flex-wrap:wrap;gap:8px}
+.template-types button,.pick-pills button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px;font-weight:700}
 .template-types button.selected{background:var(--night);border-color:var(--night);color:#fff}
+.pick-pills button:disabled{opacity:.45}
+.edit-icon{display:grid;place-items:center;flex-shrink:0;width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent)}
+.pick-pills .avatar{flex-shrink:0}
+.edit-details{white-space:pre-line;overflow-wrap:anywhere;padding:12px 14px;border-radius:14px;background:var(--pista);color:var(--ink);font-size:15px;line-height:1.45}
 .template-count{display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--flash);color:var(--on-flash);font-size:11px;font-weight:800}
 .template-items{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .template-items li{display:flex;align-items:center;gap:4px}

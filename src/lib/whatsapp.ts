@@ -52,6 +52,20 @@ export function partyInvite(i: Invite): string {
   return [`¡Hola ${first}! 👋 ${i.confirmed ? 'Te paso los datos de la fecha' : 'Te paso una fecha'}:`, '', ...details, '', close].join('\n');
 }
 
+export type EditAsk = { cmName: string; format: string; details?: string; dueOn?: string; amountCents?: number };
+
+/** El mensaje para pedirle una edición a una CM. Va solo por WhatsApp (sin link a la app). */
+export function editRequestMessage(e: EditAsk): string {
+  const due = e.dueOn ? day(e.dueOn) : '';
+  const details = [
+    `🎬 *${e.format}*`,
+    e.details?.trim() ? `📝 ${e.details.trim()}` : '',
+    due ? `📅 Para el ${due[0].toLowerCase()}${due.slice(1)}` : '',
+    e.amountCents ? `💰 ${ars(e.amountCents)}` : '',
+  ].filter(Boolean);
+  return [`¡Hola ${e.cmName.split(' ')[0]}! 👋 Te paso un pedido de edición:`, '', ...details, '', '¿Me confirmás? 🙌'].join('\n');
+}
+
 /** Link que abre WhatsApp con el mensaje escrito (al chat de la CM si el número se entiende). */
 export const waLink = (phone: string, text: string) => `https://wa.me/${waPhone(phone) ?? ''}?text=${encodeURIComponent(text)}`;
 
